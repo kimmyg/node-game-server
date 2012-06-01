@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<script type="text/javascript">
+window.onload = function( event ) {
+	ws = new WebSocket( 'ws://' + location.host + '/' );
+
+	ws.onmessage = function( event ) {
+		console.log( event );
+	};
+
+	window.setTimeout( function() {
+		console.log( ws );
+		ws.send( 'This is something.' );
+	}, 2000 );
+}
+</script>
+</head>
+
+<body>
+Test.
+</body>
+
+</html>
