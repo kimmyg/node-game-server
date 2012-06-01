@@ -1,16 +1,16 @@
 var http = require('http');
 var fs = require('fs');
-var pa = require('path');
+var pathutil = require('path');
 
-var WebSocket = require( './lib/websocket.js' ).WebSocket;
+var WebSocketServer = require('ws').Server;
 
 require('./lib/array.js');
 
 var mime = { 'html': 'text/html', 'pdf': 'application/pdf' };
 
-var server = new http.Server();
+var hs = new http.Server();
 
-server.on( 'request', function( request, response ) {
+hs.on( 'request', function( request, response ) {
 	if( request.method === 'GET' ) {
 		if( request.url === '/' ) {
 			request.url = '/index.html';
@@ -18,9 +18,9 @@ server.on( 'request', function( request, response ) {
 
 		console.log( 'getting ' + request.url );
 
-		var name = pa.basename( request.url ), path = 'resources' + request.url;
+		var name = pathutil.basename( request.url ), path = 'resources' + request.url;
 
-		if( pa.existsSync( path ) ) {
+		if( pathutil.existsSync( path ) ) {
 			if( fs.statSync( path ).isDirectory() ) {
 				// directory
 			}
@@ -45,15 +45,14 @@ server.on( 'request', function( request, response ) {
 	}	
 });
 
-server.on( 'upgrade', function( request, socket, head ) {
-	WebSocket.create( socket, request.headers );
+var wss = new WebSocketServer({ server: hs });
 
-	socket.on( 'message', function( message ) {
+wss.on( 'connection', function( ws ) {
+	ws.on( 'message', function( message ) {
 		this.send( message );
 	});
-
 });
 
-server.listen( 8000, '127.0.0.1', function() {
-	console.log( "Listening on 127.0.0.1:8000" );
+hs.listen( 8000, function() {
+	console.log( 'Listening on 127.0.0.1:8000' );
 });
