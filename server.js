@@ -1,51 +1,27 @@
 var http = require('http');
-var fs = require('fs');
-var pathutil = require('path');
+var ws = require('ws');
 
-var WebSocketServer = require('ws').Server;
+var login = require( './login.js' );
+var main = require( './main.js' );
 
-require('./lib/array.js');
-
-var mime = { 'html': 'text/html', 'pdf': 'application/pdf' };
+//var pool = new require( './pool.js' ).Pool();
 
 var hs = new http.Server();
 
 hs.on( 'request', function( request, response ) {
-	if( request.method === 'GET' ) {
-		if( request.url === '/' ) {
-			request.url = '/index.html';
-		}
-
-		console.log( 'getting ' + request.url );
-
-		var name = pathutil.basename( request.url ), path = 'resources' + request.url;
-
-		if( pathutil.existsSync( path ) ) {
-			if( fs.statSync( path ).isDirectory() ) {
-				// directory
-			}
-			else {
-				var contents = fs.readFileSync( path );
-
-				response.writeHead( 200, {
-					'Content-Type': mime[ name.split('.').last ] || 'text/plain',
-					'Content-Length': contents.length
-				});
-
-				response.end( contents );
-			}
-		}
-		else {
-			response.writeHead( 404 );
-			response.end();
-		}
+	if( request.headers.cookie ) {
+		// test cookie
+		// if logged in
+			main.handle.call( this, request, response );
+		// else
+			//login
 	}
 	else {
-		// not GET
-	}	
+		login.handle.call( this, request, response );
+	}
 });
 
-var wss = new WebSocketServer({ server: hs });
+var wss = new ws.Server({ server: hs });
 
 wss.on( 'connection', function( ws ) {
 	ws.on( 'message', function( message ) {
