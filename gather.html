@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<script type="text/javascript">
+function $( id ) {
+	return document.getElementById( id );
+}
+
+window.onload = function( event ) {
+	console.log( 'loaded' );
+
+	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
+
+	//ws.onopen = function( event ) {}
+
+	ws.onmessage = function( event ) {
+		console.log( 'started' );
+	};
+
+	//ws.onclose = function( event ) {}
+	//ws.onerror = function( event ) {}
+}
+</script>
+</head>
+
+<body>
+	<ul id="games"></ul>
+	<ul id="gatherings"></ul>
+	<a href="new">create game</a>
+</body>
+
+</html>

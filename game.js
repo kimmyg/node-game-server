@@ -2,8 +2,10 @@ var util = require('util');
 
 var redirect = require( './redirect.js' ).redirect;
 
+var fs = require('fs');
+
 exports.handle = function( user_info, parameters, response ) {
-	var game_module = require( './games/' + parameters[0] );
+	//var game_module = require( './games/' + parameters[0] );
 	
 	if( parameters.length > 1 ) {
 		if( parameters.length > 2 ) {
@@ -30,7 +32,23 @@ exports.handle = function( user_info, parameters, response ) {
 			return '<a href="/' + parameters[0] + '/' + game.id + '">' + game.id + '</a>';
 		});*/
 		
-		response.writeHead( 200, { 'Content-Type': 'text/plain' } );
-		response.end( 'list of games for ' + user_info.name );
+		//response.writeHead( 200, { 'Content-Type': 'text/plain' } );
+		//response.end( 'list of games for ' + user_info.name );
+		
+		fs.readFile( 'gather.html', 'utf8', function( error, data ) {
+			if( error ) {
+				redirect( response, '/', 'could not load thing' );
+			}
+			else {
+				response.writeHead( 200, { 'Content-Type': 'text/html' } );
+				response.end( data );
+			}
+		});
 	}
+}
+
+exports.handleWS = function( user_info, parameters, ws ) {
+	//var game_module = require( './games/' + parameters[0] );
+	
+	//
 }

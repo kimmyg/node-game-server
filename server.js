@@ -20,30 +20,20 @@ hs.on( 'request', function( request, response ) {
 			info = { 'name': info.name, 'token': info.token };
 		
 			if( login.tokenIsValid( info.name, info.token ) ) {
-				var components = url.parse( request.url ).pathname.split( '/' );
+				var components = url.parse( request.url ).pathname.split( '/' ).slice( 1 );
 				
-				if( components.length > 1 ) { // there is a slash
-					if( components[0] === '' ) {
-						if( components[1] === '' ) {
-							main.handle.call( this, info, response );
-						}
-						else {
-							fs.stat( 'games/' + components[1], function( error, stats ) {
-								if( error ) {
-									redirect( response, '/' );
-								}
-								else {
-									game.handle.call( this, info, components.slice( 1 ), response );
-								}
-							});
-						}
-					}
-					else {
-						redirect( response, '/' );
-					}
+				if( components[0] === '' ) {
+					main.handle.call( this, info, response );
 				}
 				else {
-					redirect( response, '/' );
+					fs.stat( 'games/' + components[0], function( error, stats ) {
+						if( error ) {
+							redirect( response, '/' );
+						}
+						else {
+							game.handle.call( this, info, components, response );
+						}
+					});
 				}
 			}
 			else {
@@ -66,9 +56,37 @@ hs.on( 'request', function( request, response ) {
 var wss = new ws.Server({ server: hs });
 
 wss.on( 'connection', function( ws ) {
-	ws.on( 'message', function( message ) {
-		this.send( message );
-	});
+	var request = ws.upgradeReq;
+	
+	if( request.headers.cookie ) {
+		var info = cookie.parse( request.headers.cookie );
+		
+		if( info.name && info.token ) {
+			info = { 'name': info.name, 'token': info.token };
+		
+			if( login.tokenIsValid( info.name, info.token ) ) {
+				var components = url.parse( request.url ).pathname.split( '/' ).slice( 1 );
+				
+				fs.stat( 'games/' + components[0], function( error, stats ) {
+					if( error ) {
+						ws.close();
+					}
+					else {
+						game.handleWS.call( this, info, components, ws );
+					}
+				});
+			}
+			else {
+				ws.close();
+			}
+		}
+		else {
+			ws.close();
+		}
+	}
+	else {
+		ws.close();
+	}
 });
 
 hs.listen( 8000, function() {
