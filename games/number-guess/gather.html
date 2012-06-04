@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<script type="text/javascript">
+function $( id ) {
+	return document.getElementById( id );
+}
+
+window.onload = function( event ) {
+	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
+
+	//ws.onopen = function( event ) {}
+
+	ws.onmessage = function( event ) {
+
+	};
+
+	//ws.onclose = function( event ) {}
+	//ws.onerror = function( event ) {}
+
+	$('guesser').onclick = function( event ) {
+		
+	}
+
+	$('guessee').onclick = function( event ) {
+
+	}
+}
+</script>
+</head>
+
+<body>
+	<div id="guesser">
+		<span>Guesser</span>
+		<span id="guesser_name"></span>
+	</div>
+	<div id="guessee">
+		<span>Guessee</span>
+		<span id="guessee_name"></span>
+	</div>
+</body>
+
+</html>

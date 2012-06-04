@@ -5,8 +5,28 @@ var url = require( 'url' );
 
 var accounts = JSON.parse( fs.readFileSync( 'accounts', 'utf8' ) );
 
-
 var main = require( './main.js' );
+
+var tokenForName = function( name ) {
+	var hash = crypto.createHash( 'sha1' );
+
+	hash.update( name, 'utf8' );
+	hash.update( 'humblebundle', 'utf8' );
+	
+	return hash.digest( 'hex' );
+}
+
+var hashPassword = function( password ) {
+	var hash = crypto.createHash( 'sha1' );
+
+	hash.update( password, 'utf8' );
+	
+	return hash.digest( 'hex' );
+}
+
+exports.tokenIsValid = function( name, token ) {
+	return ( token === tokenForName( name ) );
+}
 
 exports.handle = function( request, response ) {
 	if( request.method === 'POST' ) {
@@ -20,27 +40,23 @@ exports.handle = function( request, response ) {
 			var credentials = qs.parse( body );
 
 			if( accounts[ credentials.name ] ) {
-				var hash = crypto.createHash( 'sha1' );
-
-				hash.update( credentials.password, 'utf8' );
-
-				if( hash.digest( 'hex' ) === accounts[ credentials.name ] ) {
-					hash = crypto.createHash( 'sha1' );
-
-					hash.update( credentials.name, 'utf8' );
-					hash.update( 'humblebundle', 'utf8' );
-
+				if( hashPassword( credentials.password ) === accounts[ credentials.name ] ) {
+					console.log( 'correct password' );
+					
 					response.writeHead( 303, {
 						'Location': url.parse( request.url, true ).query.redirect,
-						'Set-Cookie': hash.digest( 'base64' )
+						'Set-Cookie': [ 'name=' + credentials.name, 'token=' + tokenForName( credentials.name ) ]
 					});
 					response.end();
 				}
 				else {
 					// password is wrong, redo this thing
+					console.log( 'incorrect password' );
 				}
 			}
 			else {
+				console.log( 'no account' );
+			
 				response.writeHead( 200, { 'Content-Type': 'text/html' } );
 				response.end( 'There is no account named "' + credentials.name + '".' );
 			}
@@ -55,29 +71,4 @@ exports.handle = function( request, response ) {
 		response.write( '</form>' );
 		response.end();
 	}
-/*
-	if( request.headers.cookie ) {
-		// lookup cookie; if good
-		
-		if( request.url === '/' ) {
-			main.handle.call( this, request, response );
-		}
-		else {
-			fs.stat( 'games' + request.url, function( error, stats ) {
-				if( error ) {
-					response.writeHead( 404 );
-					response.end();
-				}
-				else {
-					response.writeHead( 200 );
-					response.end( request.url );
-				}
-			});
-		}
-	}
-	else {
-		response.setHeader( 'Set-Cookie', 'test_cookie' );
-		response.end();
-	}
-*/
 }
