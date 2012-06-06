@@ -8,14 +8,33 @@ function $( id ) {
 }
 
 window.onload = function( event ) {
-	console.log( 'loaded' );
-
 	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
 
 	//ws.onopen = function( event ) {}
 
 	ws.onmessage = function( event ) {
-		console.log( 'started' );
+		var message = JSON.parse( event.data );
+
+		if( message.type === 'add' ) {
+			var li = document.createElement( 'li' );
+
+			li.id = message.id;
+
+			var a = document.createElement( 'a' );
+
+			a.href = location.pathname + '/' + message.id;
+			a.innerText = message.creator;
+
+			li.appendChild( a );
+
+			$('gatherings').appendChild( li );
+		}
+		else if( message.type === 'remove' ) {
+			$('gatherings').removeChild( $(id) );
+		}
+		else {
+			console.log( 'unrecognized message type: ' + message.type );
+		}
 	};
 
 	//ws.onclose = function( event ) {}
@@ -25,9 +44,11 @@ window.onload = function( event ) {
 </head>
 
 <body>
+	games in progress
 	<ul id="games"></ul>
+	gatherings
 	<ul id="gatherings"></ul>
-	<a href="new">create game</a>
+	<a href="/ghost/new">create game</a>
 </body>
 
 </html>

@@ -5,7 +5,7 @@ var redirect = require( './redirect.js' ).redirect;
 var fs = require('fs');
 
 exports.handle = function( user_info, parameters, response ) {
-	//var game_module = require( './games/' + parameters[0] );
+	var game_module = require( './games/' + parameters[0] );
 	
 	if( parameters.length > 1 ) {
 		if( parameters.length > 2 ) {
@@ -13,10 +13,26 @@ exports.handle = function( user_info, parameters, response ) {
 		}
 		else {
 			if( parameters[1] === 'new' ) {
-				var game_id = game_module.createGathering( user_info.name );
-				// create a new game and redirect to its gathering
+				var id = game_module.createGathering( user_info.name );
+				redirect( response, '/' + parameters[0] + '/' + id );
 			}
 			else {
+				if( game_module.gameExistsWithId( parameters[1] ) ) {
+					fs.readFile( 'games/' + parameters[0] + '/gather.html', 'utf8', function( error, data ) {
+						if( error ) {
+							redirect( response, '/', 'could not load games/' + parameters[0] + 'gather.html' );
+						}
+						else {
+							response.writeHead( 200, { 'Content-Type': 'text/html' } );
+							response.end( data );
+						}
+					});
+
+				}
+				else {
+					redirect( response, '/' + parameters[0], 'there is no game with id ' + parameters[1] );
+				}
+
 				// since the game was displayed, it must be resumable (else it would 
 				// disappear immediately), the player must be in it (else it wouldn't 
 				// be displayed), and the player must not be connected (we could 
@@ -48,7 +64,7 @@ exports.handle = function( user_info, parameters, response ) {
 }
 
 exports.handleWS = function( user_info, parameters, ws ) {
-	//var game_module = require( './games/' + parameters[0] );
-	
-	//
+	var game_module = require( './games/' + parameters[0] );
+
+	game_module.addListener( ws );	
 }
