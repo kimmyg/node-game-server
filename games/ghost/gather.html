@@ -16,34 +16,19 @@ window.onload = function( event ) {
 		var message = JSON.parse( event.data );
 
 		if( message.type === 'add' ) {
-			message.player.name
+			message.name;
+		}
 
 	};
 
 	//ws.onclose = function( event ) {}
 	//ws.onerror = function( event ) {}
-
-	$('guesser').onclick = function( event ) {
-		
-	}
-
-	$('guessee').onclick = function( event ) {
-
-	}
 }
 </script>
 </head>
 
 <body>
-	<div id="guesser">
-		<span>Guesser</span>
-		<span id="guesser_name"></span>
-	</div>
-	<div id="guessee">
-		<span>Guessee</span>
-		<span id="guessee_name"></span>
-	</div>
-	<ul id="undecided"></ul>
+	<ul id="players"></ul>
 </body>
 
 </html>

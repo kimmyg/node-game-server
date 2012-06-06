@@ -30,7 +30,7 @@ window.onload = function( event ) {
 			$('gatherings').appendChild( li );
 		}
 		else if( message.type === 'remove' ) {
-			$('gatherings').removeChild( $(id) );
+			$('gatherings').removeChild( $( message.id ) );
 		}
 		else {
 			console.log( 'unrecognized message type: ' + message.type );

@@ -17,7 +17,7 @@ exports.handle = function( user_info, parameters, response ) {
 				redirect( response, '/' + parameters[0] + '/' + id );
 			}
 			else {
-				if( game_module.gameExistsWithId( parameters[1] ) ) {
+				if( game_module.playerCanJoinWithId( user_info.name, parameters[1] ) ) {
 					fs.readFile( 'games/' + parameters[0] + '/gather.html', 'utf8', function( error, data ) {
 						if( error ) {
 							redirect( response, '/', 'could not load games/' + parameters[0] + 'gather.html' );
