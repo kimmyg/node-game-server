@@ -48,12 +48,11 @@ exports.handle = function( user_info, parameters, response ) {
 			return '<a href="/' + parameters[0] + '/' + game.id + '">' + game.id + '</a>';
 		});*/
 		
-		//response.writeHead( 200, { 'Content-Type': 'text/plain' } );
-		//response.end( 'list of games for ' + user_info.name );
+		// game.html should be parameterized somehow
 		
-		fs.readFile( 'gather.html', 'utf8', function( error, data ) {
+		fs.readFile( 'game.html', 'utf8', function( error, data ) {
 			if( error ) {
-				redirect( response, '/', 'could not load thing' );
+				redirect( response, '/', 'could not load game.html' );
 			}
 			else {
 				response.writeHead( 200, { 'Content-Type': 'text/html' } );
@@ -64,7 +63,17 @@ exports.handle = function( user_info, parameters, response ) {
 }
 
 exports.handleWS = function( user_info, parameters, ws ) {
-	var game_module = require( './games/' + parameters[0] );
+	var manager = require( './games/' + parameters[0] );
 
-	game_module.addListener( ws );	
+	if( parameters.length > 1 ) {
+		if( manager.playerCanJoinWithId( user_info.name, parameters[1] ) ) {
+			manager.joinGathering( ws, parameters[1], user_info.name );
+		}
+		else {
+			ws.close();
+		}
+	}
+	else {
+		manager.watchGatherings( ws );
+	}
 }
