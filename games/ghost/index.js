@@ -55,32 +55,33 @@ manager.playerCanJoinWithId( 'test', 'aabbccdd' )
 
 var EventEmitter = require('events').EventEmitter;
 
-var game = require( './game.js' );
+var game = require( './definition.js' );
 
 var in_waiting = {}; // games go here when just created, moved to gatherings and broadcasted when the creator joins
-var gatherings = {}
+var gatherings = {};
+var games = {};
 
 var emitter = new EventEmitter();
 
-exports.watchGatherings = function( ws ) {
-	var addCB = function( game ) {
-		ws.send( JSON.stringify({ type: 'add', id: game.id, name: game.creator }) );
+exports.watch = function( ws ) {
+	var createCB = function( id, creator ) {
+		ws.send( JSON.stringify({ type: 'add', id: id, name: creator }) );
 	};
 
-	var removeCB = function( game ) {
-		ws.send( JSON.stringify({ type: 'remove', id: game.id }) );
+	var removeCB = function( id ) {
+		ws.send( JSON.stringify({ type: 'remove', id: id }) );
 	};
 	
-	var renameCB = function( game ) {
-		ws.send( JSON.stringify({ type: 'rename', id: game.id, name: game.creator }) );
+	var renameCB = function( id, name ) {
+		ws.send( JSON.stringify({ type: 'rename', id: id, name: name }) );
 	};
 
-	emitter.addListener( 'add', addCB );
+	emitter.addListener( 'create', createCB );
 	emitter.addListener( 'remove', removeCB );
 	emitter.addListener( 'rename', renameCB );
 
 	ws.on( 'close', function() {
-		emitter.removeListener( 'add', addCB );
+		emitter.removeListener( 'create', createCB );
 		emitter.removeListener( 'remove', removeCB );
 		emitter.removeListener( 'rename', renameCB );
 	});
@@ -92,37 +93,55 @@ exports.watchGatherings = function( ws ) {
 	}
 }
 
-exports.joinGathering = function( ws, id, player_name ) {
+// gathering events:
+// create( id, creator )
+// remove( id )
+// new_creator( id, creator )
+// empty()
+
+exports.join = function( id, ws, player_name ) {
 	if( in_waiting.hasOwnProperty( id ) ) {
 		var gathering = in_waiting[ id ];
 	
 		delete in_waiting[ id ];
 		
-		gathering.addPlayer( ws, player_name );
+		gathering.join( ws, player_name );
 		ws.on( 'close', function() {
-			gathering.removePlayer( ws );
+			gathering.part( ws );
 		});
 			
 		gatherings[ id ] = gathering;
 		
-		emitter.emit( 'add', gathering );
+		emitter.emit( 'create', gathering.id, gathering.creator );
 		
 		gathering.on( 'empty', function() {
 			delete gatherings[ id ];
-			emitter.emit( 'remove', gathering );
+			emitter.emit( 'remove', id );
 		});
 		
-		gathering.on( 'new_creator', function( player_name ) {
-			emitter.emit( 'rename', gathering );
+		gathering.on( 'new_creator', function( id, creator ) {
+			emitter.emit( 'rename', id, creator );
+		});
+
+		gathering.on( 'start', function( id ) {
+			// do the manager stuff necessary so that when clients reconnect,
+			// they will connect to the game
+			// send a gathering broadcast.
 		});
 	}
-	else { // must be a gathering already
+	else if( gatherings.hasOwnProperty( id ) ) {
 		var gathering = gatherings[ id ];
 	
-		gathering.addPlayer( ws, player_name );
+		gathering.join( ws, player_name );
 		ws.on( 'close', function() {
-			gathering.removePlayer( ws );
+			gathering.part( ws );
 		});
+	}
+	else if( games.hasOwnProperty( id ) ) {
+		// join the game here
+	}
+	else {
+		console.log( 'whoa, rogue id: ' + id );
 	}
 }
 
@@ -144,8 +163,6 @@ exports.createGathering = function( creator ) {
 	return id;
 }
 
-exports.playerCanJoinWithId = function( player, id ) {
-	return ( ( in_waiting.hasOwnProperty( id ) && in_waiting[ id ].creator === player ) || gatherings.hasOwnProperty( id ) );
+exports.playerCanJoin = function( id, player_name ) {
+	return ( ( in_waiting.hasOwnProperty( id ) && in_waiting[ id ].creator === player_name ) || gatherings.hasOwnProperty( id ) );
 }
-
-

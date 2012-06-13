@@ -15,9 +15,14 @@ window.onload = function( event ) {
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
 
-		if( message.type === 'creator' ) {
-			delete $('start_button').disabled;
+		if( message.type === '' ) {
+
 		}
+		if( message.type === 'turn' ) {
+			$('status').innerText = 'It\'s your turn.';
+		}
+
+
 		else if( message.type === 'players' ) {
 			for( var i = 0; i < message.players.length; ++i ) {
 				var li = document.createElement( 'li' );
@@ -52,8 +57,31 @@ window.onload = function( event ) {
 </head>
 
 <body>
-	<ul id="players"></ul>
-	<button id="start_button" disabled="disabled">Start Game</button>
+	<span id="word"></span>
+	<div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+		<div>a</div>
+	</div>
+	<div>
+		<div>challenge</div>
+		<div>declare</div>
+	</div>
+	<div>
+		<div>Is this a word?</div>
+		<div>Yes</div>
+		<div>No</div>
+	</div>
+	<div>It's your turn./It's kimmyg's turn.</div>
+		<div>Waiting on you and two others./Waiting on you./Waiting on two others.</div>
+	<div id="status"></div>
 </body>
 
 </html>

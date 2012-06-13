@@ -17,7 +17,7 @@ exports.handle = function( user_info, parameters, response ) {
 				redirect( response, '/' + parameters[0] + '/' + id );
 			}
 			else {
-				if( game_module.playerCanJoinWithId( user_info.name, parameters[1] ) ) {
+				if( game_module.playerCanJoin( parameters[1], user_info.name ) ) {
 					fs.readFile( 'games/' + parameters[0] + '/gather.html', 'utf8', function( error, data ) {
 						if( error ) {
 							redirect( response, '/', 'could not load games/' + parameters[0] + 'gather.html' );
@@ -66,14 +66,14 @@ exports.handleWS = function( user_info, parameters, ws ) {
 	var manager = require( './games/' + parameters[0] );
 
 	if( parameters.length > 1 ) {
-		if( manager.playerCanJoinWithId( user_info.name, parameters[1] ) ) {
-			manager.joinGathering( ws, parameters[1], user_info.name );
+		if( manager.playerCanJoin( parameters[1], user_info.name ) ) {
+			manager.join( parameters[1], ws, user_info.name );
 		}
 		else {
 			ws.close();
 		}
 	}
 	else {
-		manager.watchGatherings( ws );
+		manager.watch( ws );
 	}
 }

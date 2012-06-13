@@ -16,7 +16,7 @@ window.onload = function( event ) {
 		var message = JSON.parse( event.data );
 
 		if( message.type === 'creator' ) {
-			delete $('start_button').disabled;
+			$('start_button').removeAttribute( 'disabled' );
 		}
 		else if( message.type === 'players' ) {
 			for( var i = 0; i < message.players.length; ++i ) {
@@ -39,6 +39,22 @@ window.onload = function( event ) {
 		else if( message.type === 'remove' ) {
 			$('players').removeChild( $( message.name ) );
 		}
+		else if( message.type === 'chat' ) {
+			var p = document.createElement( 'p' );
+			
+			var span1 = document.createElement( 'span' );
+			span1.innerText = message.sender;
+			p.appendChild( span1 );
+
+			var span2 = document.createElement( 'span' );
+			span2.innerText = message.message;
+			p.appendChild( span2 );
+
+			$('chat').appendChild( p );
+		}
+		else if( message.type === 'start' ) {
+			// refresh the page or something
+		}
 		else {
 			console.log( 'unrecognized message type ' + message.type );
 		}
@@ -47,12 +63,26 @@ window.onload = function( event ) {
 
 	//ws.onclose = function( event ) {}
 	//ws.onerror = function( event ) {}
-}
+
+	$('start_button').onclick = function( event ) {
+		ws.send( JSON.stringify({ type: 'start' }) );
+	};
+
+	$('chat_button').onclick = function( event ) {
+		if( $('chat_text').value ) {
+			ws.send( JSON.stringify({ type: 'chat', message: $('chat_text').value }) );
+			$('chat_text').value = '';
+		}
+	};
+};
 </script>
 </head>
 
 <body>
 	<ul id="players"></ul>
+	<div id="chat"></div>
+	<input id="chat_text" type="text"/>
+	<button id="chat_button">Send</button>
 	<button id="start_button" disabled="disabled">Start Game</button>
 </body>
 
