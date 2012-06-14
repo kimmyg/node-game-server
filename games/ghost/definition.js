@@ -3,6 +3,8 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var Map = require( '../../lib/map.js' ).Map;
 
+require( '../../lib/object.js' );
+
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
 	
@@ -95,10 +97,15 @@ Gathering.prototype.handle = function( ws, message ) {
 
 exports.Gathering = Gathering;
 
+
 function Ghost( n ) {
 	EventEmitter.call( this );
 
-	this.n = n;
+	this.players = [];
+
+	for( var i = 0; i < n; ++i ) {
+		this.players.push( i );
+	}
 }
 
 util.inherits( Ghost, EventEmitter );
@@ -107,9 +114,12 @@ Ghost.prototype.start = function() {
 	this.word = [];
 
 	this.state = 0;
-	this.state_data = { last: null, turn: 0 };
+	this.state_data = {
+		last: null,
+		turn: 0
+	};
 
-	this.emit( 'turn', this.turn );
+	this.emit( 'turn', this.state_data.turn );
 }
 
 Ghost.prototype.nextTurn = function() {
@@ -117,7 +127,7 @@ Ghost.prototype.nextTurn = function() {
 		this.state_data.last = this.state_data.turn;
 		this.state_data.turn = ( this.state_data.turn + 1 ) % this.n;
 
-		this.emit( 'turn', this.turn );
+		this.emit( 'turn', this.state_data.turn );
 	}
 	else {
 		this.emit( 'critical', 'next turn called with state ' + this.state );
@@ -191,8 +201,11 @@ Ghost.prototype.declare = function( sender ) {
 				this.state_data = {
 					defense: this.state_data.last, 
 					prosecution: this.state_data.turn,
-					votes: {},
-					votes_left: this.n
+					advantage: this.state_data.last,
+					votes: {
+						this.state_data.turn = 1
+					},
+					votes_left: this.players.length - 1
 				};
 
 				this.emit( 'declare', sender );
@@ -206,14 +219,17 @@ Ghost.prototype.declare = function( sender ) {
 		}
 	}
 	else if( this.state === 2 ) {
-		if( this.word.length > this.prefix_length ) {
+		if( this.word.length > this.state_data.prefix_length ) {
 			this.state = 1;
 
 			this.state_data = {
 				defense: this.state_data.challenger,
 				prosecution: this.state_data.challenged,
-				votes: {},
-				votes_left: this.n - 2
+				advantage: this.state_data.challenged,
+				votes: {
+					this.state_data.challenged: 1
+				},
+				votes_left: this.players.length - 1
 			};
 
 			this.emit( 'declare', sender );
@@ -262,14 +278,63 @@ Ghost.prototype.challenge = function( sender ) {
 
 Ghost.prototype.vote = function( sender, vote ) {
 	if( this.state === 1 ) {
-		if( ! ( sender === this.state_data.prosecution || sender === this.state_data.defense ) ) {
+		if( sender === this.state_data.prosecution ) ) {
 			if( this.vote === 1 || this.vote === 2 ) {
 				if( ! this.state_data.votes[ sender ] ) {
 					this.state_data.votes[ sender ] = vote;
 					this.state_data.votes_left = this.state_data.votes_left - 1;
 
 					if( this.state_data.votes_left === 0 ) {
-						// count votes and set things
+						var votes_is_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
+							if( vote === 1 ) {
+								return total + 1;
+							}
+							else {
+								return total;
+							}
+						});
+
+						var votes_is_not_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
+							if( vote === 2 ) {
+								return total + 1;
+							}
+							else {
+								return total;
+							}
+						});
+
+						if( this.state_data.advantage === this.state_data.prosecution ) {
+							if( votes_is_not_word > votes_is_word ) {
+								// prosecution loses
+
+								for( var i = 0; i < this.players.length; ++i ) {
+									if( prosecution === this.players[i] ) {
+										this.players.splice( i, 1 );
+									}
+								}
+
+								if( this.players.length > 1 ) {
+									this.start();
+								}
+								else {
+									this.end();
+								}
+							}
+							else {
+								// defense loses
+							}
+						}
+						else if( this.state_data.advantage === this.state_data.defense ) {
+							if( votes_is_word > votes_is_not_word ) {
+								// defense loses
+							}
+							else {
+								// prosecution loses
+							}
+						}
+						else {
+							this.emit( 'critical', 'unknown advantage: ' + this.state_data.advantage );
+						}
 					}
 					else {
 						this.emit( 'vote', sender );
@@ -298,6 +363,55 @@ Ghost.prototype.vote = function( sender, vote ) {
 Ghost.prototype.getState = function() {
 	return { state: this.state, state_data: this.state_data, word: this.word };
 }
+
+function TerminalInterface( n ) {
+	this.game = new Ghost( n );
+
+	this.game.on( 'turn', function( player ) {
+		console.log( 'player ' + player + '\'s turn' );
+	});
+
+	this.game.on( 'add', function( player, letter ) {
+		console.log( 'player ' + player + ' added ' + letter );
+	});
+
+	this.game.on( 'remove', function( player ) {
+		console.log( 'player ' + player + ' removed a letter' );
+	});
+
+	this.game.on( 'vote', function( player ) {
+		console.log( 'player ' + player + ' voted' );
+	});
+
+	this.game.on( 'challenge', function( challenger, challengee ) {
+		console.log( 'player ' + challenger + ' challenged player ' + challengee );
+	});
+
+	this.game.on( 'declare', function( declarer ) {
+		console.log( 'player ' + declarer + ' declared word' );
+	});
+
+	this.game.on( 'fail', function( causer, message ) {
+		console.log( 'player ' + causer + ': ' + message );
+	});
+}
+
+TerminalInterface.prototype.send = function( message ) {
+	if( typeof( this.game[ message ] ) === 'function' ) {
+		var args = [];
+
+		for( var i = 1; i < arguments.length; ++i ) {
+			args.push( arguments[i] );
+		}
+
+		this.game[ message ].apply( this.game, args );
+	}
+	else {
+		console.log( 'INTERFACE: not a method' );
+	}
+}
+
+exports.Game = TerminalInterface;
 
 function Game() {}
 
