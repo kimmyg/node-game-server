@@ -2,6 +2,107 @@
 <html>
 
 <head>
+<meta name="viewport" content="width=device-width"/>
+<style type="text/css">
+body {
+	background: #aaa;
+	font-family: sans-serif;
+	text-align: center;
+	text-color: white;
+	margin-top: 0;
+	color: #353535;
+}
+
+div {
+	//border: solid black 1px;
+}
+
+#bubble {
+	background-color: white;
+	border: solid #777 1px;
+	color: #333;
+	//font-family: serif;
+	font-size: 2em;
+	text-align: center;
+	padding: 0;
+	margin-top: 0.5em;
+	margin-bottom: 0.3em;
+
+	-webkit-border-radius: 0.5em;
+}
+
+.button {
+	display: inline-block;
+	vertical-align: baseline;
+	margin: 0.25em 0.125em;
+	cursor: pointer;
+	text-align: center;
+	text-decoration: none;
+	padding: 0.2em 0.4em;
+	text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+	-webkit-border-radius: 0.5em;
+	-webkit-box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.white {
+	color: #606060;
+	border: solid 1px #b7b7b7;
+	background: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#ededed));
+}
+
+.gray {
+	color: #e9e9e9;
+	border: solid 1px #555;
+	background: -webkit-gradient(linear, left top, left bottom, from(#888), to(#575757));
+}
+
+.red {
+	color: #faddde;
+	border: solid 1px #980c10;
+	background: -webkit-gradient(linear, left top, left bottom, from(#ed1c24), to(#aa1317));
+}
+
+.orange {
+	color: #fef4e9;
+	border: solid 1px #da7c0c;
+	background: -webkit-gradient(linear, left top, left bottom, from(#faa51a), to(#f47a20));
+}
+
+.green {
+	color: #e8f0de;
+	border: solid 1px #538312;
+	background: -webkit-gradient(linear, left top, left bottom, from(#7db72f), to(#4e7d0e));
+}
+
+.hidden {
+	display: none;
+}
+
+.player_0 {
+	background: #aab;
+}
+
+.player_1 {
+	background: #aba;
+}
+
+.player_2 {
+	background: #baa;
+}
+
+.player_3 {
+	background: #bba;
+}
+
+.player_4 {
+	background: #bab;
+}
+
+.player_5 {
+	background: #abb;
+}
+</style>
+<script type="text/javascript">
 <script type="text/javascript">
 function $( id ) {
 	return document.getElementById( id );
@@ -14,6 +115,27 @@ window.onload = function( event ) {
 
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
+
+		// waiting for players X_1, ...
+		// no longer waiting for player X
+		// turn of player X
+		// your turn
+		// add letter
+		// X challenged Y (challenge phase)
+		// challenge letter added
+		// challenge letter removed
+		// challenge word declared (voting phase)
+		// waiting for players X_1, ... to vote
+		// no longer waiting for player X to vote
+		// voted that A, X is out
+		// X declared word (voting phase)
+		// waiting...
+		// no longer waiting for...
+		// voted that A, X is out
+		// X proposes to kick Y out of game (must it be Y's turn?)
+		// waiting for votes
+		// no longer waiting for X
+		// figure out voting timeout strategy
 
 		if( message.type === '' ) {
 
@@ -56,7 +178,92 @@ window.onload = function( event ) {
 </script>
 </head>
 
-<body>
+<body id="main">
+	<div id="interface">
+		<div id="bubble">
+			<span id="word">&nbsp;</span>
+		</div>
+		<div id="letters">
+			<a class="gray button" onclick="add_letter(this);">Q</a>
+			<a class="gray button" onclick="add_letter(this);">W</a>
+			<a class="gray button" onclick="add_letter(this);">E</a>
+			<a class="gray button" onclick="add_letter(this);">R</a>
+			<a class="gray button" onclick="add_letter(this);">T</a>
+			<a class="gray button" onclick="add_letter(this);">Y</a>
+			<a class="gray button" onclick="add_letter(this);">U</a>
+			<a class="gray button" onclick="add_letter(this);">I</a>
+			<a class="gray button" onclick="add_letter(this);">O</a>
+			<a class="gray button" onclick="add_letter(this);">A</a>
+			<a class="gray button" onclick="add_letter(this);">S</a>
+			<a class="gray button" onclick="add_letter(this);">D</a>
+			<a class="gray button" onclick="add_letter(this);">F</a>
+			<a class="gray button" onclick="add_letter(this);">G</a>
+			<a class="gray button" onclick="add_letter(this);">H</a>
+			<a class="gray button" onclick="add_letter(this);">J</a>
+			<a class="gray button" onclick="add_letter(this);">K</a>
+			<a class="gray button" onclick="add_letter(this);">L</a>
+			<a class="gray button" onclick="add_letter(this);">Z</a>
+			<a class="gray button" onclick="add_letter(this);">X</a>
+			<a class="gray button" onclick="add_letter(this);">C</a>
+			<a class="gray button" onclick="add_letter(this);">V</a>
+			<a class="gray button" onclick="add_letter(this);">B</a>
+			<a class="gray button" onclick="add_letter(this);">N</a>
+			<a class="gray button" onclick="add_letter(this);">M</a>
+			<a class="gray button" onclick="add_letter(this);">P</a>
+		</div>
+		<div id="signal">
+			<span id="declare_button">
+				<a class="gray button" onclick="declare();">DECLARE</a>
+			</span>
+			<span id="challenge_button">
+				<a class="gray button" onclick="challenge();">CHALLENGE</a>
+			</span>
+		</div>
+		<div id="confirm_declare">
+			<span id="declare_name"></span> declares <span id="declare_word"></span> a word.
+			<a class="gray button" onclick="declare_affirm();"><span id="declare_affirm_word"></span> is a word</a>
+			<a class="gray button" onclick="declare_negate();"><span id="declare_negate_word"></span> is <em>not</em> a word</a>
+		</div>
+		<!--<div id="confirm_challenge">
+			<span id="challenge_name"></span> challenges <span id="challenge_word"></span>.
+			<a class="gray button" onclick="challenge_affirm();"><span id="challenge_negate_word"></span> does start a word</a>
+			<a class="gray button" onclick="challenge_negate();"><span id="challenge_negate_word"></span> does <em>not</em> start a word</a>
+			
+		</div>-->
+	</div>
+	<div id="scorecard">
+		<table id="scorecard_table">
+			<thead>
+				<tr>
+					<td>a</td>
+					<td>b</td>
+					<td>c</td>
+				</tr>
+			</thead>
+			<tr>
+				<td><a class="gray button" onclick="remove_player('Kimball');">-</a>
+				<td>Kimball</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td><a class="gray button" onclick="remove_player('Bethany');">-</a>
+				<td>Bethany</td>
+				<td>0</td>
+			</tr>
+			<tr>
+				<td><a class="gray button" onclick="remove_player('Frank');">-</a>
+				<td>Frank</td>
+				<td>0</td>
+			</tr>
+		</table>
+
+		<a class="gray button" onclick="hide_scorecard();start_round();start_turn();">Continue</a>
+	</div>
+</body>
+
+</html>
+
+<!--<body>
 	<span id="word"></span>
 	<div>
 		<div>a</div>
@@ -84,4 +291,4 @@ window.onload = function( event ) {
 	<div id="status"></div>
 </body>
 
-</html>
+</html>-->
