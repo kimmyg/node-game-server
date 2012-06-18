@@ -101,16 +101,35 @@ exports.Gathering = Gathering;
 function Ghost( n ) {
 	EventEmitter.call( this );
 
+	this.n = n;
+}
+
+util.inherits( Ghost, EventEmitter );
+
+Ghost.prototype.startGame = function() {
 	this.players = [];
 
 	for( var i = 0; i < n; ++i ) {
 		this.players.push( i );
 	}
+	
+	this.emit( 'start' );
+	
+	if( this.players.length > 1 ) {
+		this.startRound();
+	}
+	else {
+		this.endGame();
+	}
 }
 
-util.inherits( Ghost, EventEmitter );
+Ghost.prototype.endGame = function() {
+	delete this.players;
 
-Ghost.prototype.start = function() {
+	this.emit( 'end' );
+}
+
+Ghost.prototype.startRound = function() {
 	this.word = [];
 
 	this.state = 0;
@@ -118,21 +137,56 @@ Ghost.prototype.start = function() {
 		last: null,
 		turn: 0
 	};
+	
+	this.emit( 'start_round' );
+	
+	this.startTurn();
+}
 
-	this.emit( 'turn', this.state_data.turn );
+Ghost.prototype.endRound = function() {
+	delete this.word;
+	
+	delete this.state;
+	delete this.state_data;
+	
+	this.emit( 'end_round' );
+}
+
+Ghost.prototype.nextRound = function() {
+	this.endRound();
+	
+	if( this.players.length > 1 ) {
+		this.startRound();
+	}
+	else {
+		this.endGame();
+	}
+}
+
+Ghost.prototype.startTurn = function() {
+	this.emit( 'start_turn', this.state_data.turn );
+}
+
+Ghost.prototype.endTurn = function() {
+	this.emit( 'end_turn', this.state_data.turn );
 }
 
 Ghost.prototype.nextTurn = function() {
 	if( this.state === 0 ) {
+		this.endTurn();
+	
 		this.state_data.last = this.state_data.turn;
-		this.state_data.turn = ( this.state_data.turn + 1 ) % this.n;
+		this.state_data.turn = ( this.state_data.turn + 1 ) % this.players.length;
 
-		this.emit( 'turn', this.state_data.turn );
+		this.startTurn();
 	}
 	else {
 		this.emit( 'critical', 'next turn called with state ' + this.state );
 	}
 }
+
+// error messages are critical if the game logic puts the game in an inconsistent state, or there is some other corruption
+// error messages are fail or warn if the game is sent an invalid message
 
 Ghost.prototype.add = function( sender, letter ) {
 	if( this.state === 0 ) {
@@ -160,9 +214,6 @@ Ghost.prototype.add = function( sender, letter ) {
 			this.emit( 'fail', sender, 'only the challenged player can add letters' );
 		}
 	}
-	else if( this.state === 3 ) {
-		this.emit( 'fail', sender, 'can\'t add letter; round is over' );
-	}
 	else {
 		this.emit( 'critical', 'unknown state' );
 	}
@@ -184,7 +235,7 @@ Ghost.prototype.remove = function( sender ) {
 			this.emit( 'fail', sender, 'only the challenged player can remove letters' );
 		}
 	}
-	else if( this.state < 4 ) {
+	else if( this.state < 3 ) {
 		this.emit( 'fail', sender, 'not the right state' );
 	}
 	else {
@@ -200,12 +251,7 @@ Ghost.prototype.declare = function( sender ) {
 
 				this.state_data = {
 					defense: this.state_data.last, 
-					prosecution: this.state_data.turn,
-					advantage: this.state_data.last,
-					votes: {
-						this.state_data.turn = 1
-					},
-					votes_left: this.players.length - 1
+					prosecution: this.state_data.turn
 				};
 
 				this.emit( 'declare', sender );
@@ -224,12 +270,7 @@ Ghost.prototype.declare = function( sender ) {
 
 			this.state_data = {
 				defense: this.state_data.challenger,
-				prosecution: this.state_data.challenged,
-				advantage: this.state_data.challenged,
-				votes: {
-					this.state_data.challenged: 1
-				},
-				votes_left: this.players.length - 1
+				prosecution: this.state_data.challenged
 			};
 
 			this.emit( 'declare', sender );
@@ -238,7 +279,7 @@ Ghost.prototype.declare = function( sender ) {
 			this.emit( 'fail', sender, 'must add at least one letter' );
 		}
 	}
-	else if( this.state < 4 ) {
+	else if( this.state < 3 ) {
 		this.emit( 'fail', sender, 'wrong state' );
 	}
 	else {
@@ -268,7 +309,7 @@ Ghost.prototype.challenge = function( sender ) {
 			this.emit( 'fail', sender, 'not your turn' );
 		}
 	}
-	else if( this.state < 4 ) {
+	else if( this.state < 3 ) {
 		this.emit( 'fail', sender, 'wrong state' );
 	}
 	else {
@@ -276,90 +317,28 @@ Ghost.prototype.challenge = function( sender ) {
 	}
 }
 
-Ghost.prototype.vote = function( sender, vote ) {
+Ghost.prototype.rule = function( ruling ) {
 	if( this.state === 1 ) {
-		if( sender === this.state_data.prosecution ) ) {
-			if( this.vote === 1 || this.vote === 2 ) {
-				if( ! this.state_data.votes[ sender ] ) {
-					this.state_data.votes[ sender ] = vote;
-					this.state_data.votes_left = this.state_data.votes_left - 1;
-
-					if( this.state_data.votes_left === 0 ) {
-						var votes_is_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
-							if( vote === 1 ) {
-								return total + 1;
-							}
-							else {
-								return total;
-							}
-						});
-
-						var votes_is_not_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
-							if( vote === 2 ) {
-								return total + 1;
-							}
-							else {
-								return total;
-							}
-						});
-
-						if( this.state_data.advantage === this.state_data.prosecution ) {
-							if( votes_is_not_word > votes_is_word ) {
-								// prosecution loses
-
-								for( var i = 0; i < this.players.length; ++i ) {
-									if( prosecution === this.players[i] ) {
-										this.players.splice( i, 1 );
-									}
-								}
-
-								if( this.players.length > 1 ) {
-									this.start();
-								}
-								else {
-									this.end();
-								}
-							}
-							else {
-								// defense loses
-							}
-						}
-						else if( this.state_data.advantage === this.state_data.defense ) {
-							if( votes_is_word > votes_is_not_word ) {
-								// defense loses
-							}
-							else {
-								// prosecution loses
-							}
-						}
-						else {
-							this.emit( 'critical', 'unknown advantage: ' + this.state_data.advantage );
-						}
-					}
-					else {
-						this.emit( 'vote', sender );
-					}
-				}
-				else {
-					this.state_data.votes[ sender ] = vote;
-				}
-			}
-			else {
-				this.emit( 'fail', sender, 'invalid vote' );
-			}
+		if( ruling === 1 ) {
+			// get rid of defendant
+		}
+		else if( ruling === 2 ) {
+			// get rid of prosecution
 		}
 		else {
-			this.emit( 'fail', sender, 'you can\'t vote' );
+			this.emit( 'warn', 'invalid ruling: ' + ruling );
+		}
+		
+		if( ruling === 1 || ruling === 2 ) {
+			this.nextRound();
 		}
 	}
-	else if( this.state < 4 ) {
-		this.emit( 'fail', sender, 'can\'t vote in this state' );
-	}
 	else {
-		this.emit( 'critical', 'invalid state: ' + this.state );
+		this.emit( 'warn', 'ruling called with state: ' + this.state );
 	}
 }
-		
+
+
 Ghost.prototype.getState = function() {
 	return { state: this.state, state_data: this.state_data, word: this.word };
 }
@@ -412,6 +391,114 @@ TerminalInterface.prototype.send = function( message ) {
 }
 
 exports.Game = TerminalInterface;
+
+function NetworkInterface( players, game ) {
+	this.game = game;
+	
+	var self = this;
+	
+	this.onMessage = function( arguments ) {
+		self.doSomething();
+	};
+}
+
+NetworkInterface.prototype.connect = function( ws, player_name ) {
+	this.players[ player_name ] = ws;
+	
+	ws.on( 'message', this.onMessage );
+}
+
+NetworkInterface.prototype.vote = function( sender, vote ) {
+	if( this.state === 1 ) {
+		if( sender === this.state_data.prosecution ) {
+			if( this.vote === 1 || this.vote === 2 ) {
+				var previous_vote = this.state_data.votes[ sender ];
+			
+				this.state_data.votes[ sender ] = vote;
+			
+				if( ! previous_vote ) {
+					this.state_data.votes_left = this.state_data.votes_left - 1;
+
+					if( this.state_data.votes_left === 0 ) {
+						this.state = 3;
+						this.state_data = {
+							acknowledgements: {},
+							acknowledgements_left: this.players.length - 1
+						};
+						
+						var out = null;
+					
+						var votes_is_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
+							if( vote === 1 ) {
+								return total + 1;
+							}
+							else {
+								return total;
+							}
+						});
+
+						var votes_is_not_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
+							if( vote === 2 ) {
+								return total + 1;
+							}
+							else {
+								return total;
+							}
+						});
+
+						if( this.state_data.advantage === this.state_data.prosecution ) {
+							if( votes_is_not_word > votes_is_word ) {
+								out = this.state_data.prosecution;
+							}
+							else {
+								out = this.state_data.defense;
+							}
+						}
+						else if( this.state_data.advantage === this.state_data.defense ) {
+							if( votes_is_word > votes_is_not_word ) {
+								out = this.state_data.defense;
+							}
+							else {
+								out = this.state_data.prosecution;
+							}
+						}
+						else {
+							this.emit( 'critical', 'vote: unknown advantage: ' + this.state_data.advantage );
+						}
+						
+						if( this.state_data.advantage === this.state_data.prosecution || this.state_data.advantage === this.state_data.defense ) {
+							for( var i = 0; i < this.players.length; ++i ) {
+								if( this.players[i] === out ) {
+									this.players.splice( i, 1 );
+								}
+							}
+									
+							this.emit( 'out', out );
+						}
+					}
+					else {
+						this.emit( 'vote', sender );
+					}
+				}
+				else {
+					this.state_data.votes[ sender ] = vote;
+				}
+			}
+			else {
+				this.emit( 'fail', sender, 'invalid vote' );
+			}
+		}
+		else {
+			this.emit( 'fail', sender, 'you can\'t vote' );
+		}
+	}
+	else if( this.state < 4 ) {
+		this.emit( 'fail', sender, 'can\'t vote in this state' );
+	}
+	else {
+		this.emit( 'critical', 'invalid state: ' + this.state );
+	}
+}
 
 function Game() {}
 

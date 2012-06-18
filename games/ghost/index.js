@@ -53,6 +53,8 @@ manager.playerCanJoinWithId( 'test', 'aabbccdd' )
 // list of joinable games (joinable will be refined)
 // list of gatherings (should be joinable)
 
+require( '../../lib/object.js' );
+
 var EventEmitter = require('events').EventEmitter;
 
 var game = require( './definition.js' );
@@ -64,9 +66,12 @@ var games = {};
 var emitter = new EventEmitter();
 
 exports.watch = function( ws ) {
-	var createCB = function( id, creator ) {
-		ws.send( JSON.stringify({ type: 'add', id: id, name: creator }) );
+	var add_gatheringCB = function( id, creator ) {
+		ws.send( JSON.stringify({ type: 'add_gathering', id: id, name: creator }) );
 	};
+	
+	var add_gameCB = function( id, creator ) {
+		ws.send( JSON.stringify({ type: 'add_game', id: id, name: creator }) );
 
 	var removeCB = function( id ) {
 		ws.send( JSON.stringify({ type: 'remove', id: id }) );
@@ -76,19 +81,25 @@ exports.watch = function( ws ) {
 		ws.send( JSON.stringify({ type: 'rename', id: id, name: name }) );
 	};
 
-	emitter.addListener( 'create', createCB );
+	emitter.addListener( 'add_gathering', add_gatheringCB );
+	emitter.addListener( 'add_game', add_gameCB );
 	emitter.addListener( 'remove', removeCB );
 	emitter.addListener( 'rename', renameCB );
 
 	ws.on( 'close', function() {
-		emitter.removeListener( 'create', createCB );
+		emitter.removeListener( 'add_gathering', add_gatheringCB );
+		emitter.removeListener( 'add_game', add_gameCB );
 		emitter.removeListener( 'remove', removeCB );
 		emitter.removeListener( 'rename', renameCB );
 	});
 
+	gatherings.eachValue( function( gathering ) {
+		ws.send( JSON.stringify({ type: 'add_gathering', id: gathering.id, name: gathering.creator }) );
+	});
+
 	for( var id in gatherings ) {
 		if( gatherings.hasOwnProperty( id ) ) {
-			ws.send( JSON.stringify({ type: 'add', id: id, name: gatherings[id].creator }) );
+			ws.send( JSON.stringify({ type: 'add_gathering', id: id, name: gatherings[id].creator }) );
 		}
 	}
 }
