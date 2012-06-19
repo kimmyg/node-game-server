@@ -392,9 +392,18 @@ TerminalInterface.prototype.send = function( message ) {
 
 exports.Game = TerminalInterface;
 
-function NetworkInterface( players, game ) {
-	this.game = game;
+function NetworkInterface( id, players ) {
+	this.id = id;
+	this.players = players;
 	
+	// if options && options.randomizeOrder then players = players.shuffle
+
+	this.connections = new Map();
+	this.players = new Map();
+
+	this.state = 0; // waiting on everyone, not using state variables below just yet
+	this.state_data = 
+
 	var self = this;
 	
 	this.onMessage = function( arguments ) {
@@ -402,11 +411,67 @@ function NetworkInterface( players, game ) {
 	};
 }
 
-NetworkInterface.prototype.connect = function( ws, player_name ) {
-	this.players[ player_name ] = ws;
-	
-	ws.on( 'message', this.onMessage );
+NetworkInterface.prototype.gather = function() { // so it times out
+	var self = this;
+
+	setTimeout( function() {
+		// if there are no players, emit an empty game that should be removed
+		// if there are players, give them the option to drop others
+	}, 30000 );
+
+NetworkInterface.STATE_WAITING_ON_EVERYONE = 0;
+
+Gathering.prototype.broadcast = function( message ) {
+	this.connections.eachKey( function( ws ) {
+		ws.send( message );
+	});
 }
+
+NetworkInterface.prototype.join = function( ws, player_name ) {
+	ws.on( 'message', function() {
+		self.handle( ws, message );
+	});
+
+	ws.on( 'close', function() {
+		// change this player to disconnected or something
+	});
+
+	if( this.state === 0 ) {
+		this.connections.set( ws, player_name );
+		this.players.set( player_name, ws );
+
+		// remove from players waiting for
+
+		if( players.length === 0 ) {
+			// create and start the game
+		}
+		else {
+			// broadcast waiting on n players
+		}
+	}
+	else { // suppose it is known the player can join? this occurs when someone drops out and joins
+		this.game.getState();
+	}
+}
+
+this.game.on( 'turn', function( index ) {
+	var player_name = this.order[ index ];
+
+	if( this.players( player_name ) ) {
+		// handle player
+	}
+	else {
+		// broadcast that the player is not connected and will be given 30 seconds before a vote
+	}
+}
+
+ws, player_name
+
+var self = this;
+
+ws.on( 'close', function() {
+	// how do we determine whether we are waiting for this player's input? it depends on the game
+	// at the same time, this interface is specific to the game
 
 NetworkInterface.prototype.vote = function( sender, vote ) {
 	if( this.state === 1 ) {
