@@ -108,6 +108,9 @@ function $( id ) {
 }
 
 window.onload = function( event ) {
+	var state = null;
+	var state_data = null;
+
 	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
 
 	//ws.onopen = function( event ) {}
@@ -116,10 +119,36 @@ window.onload = function( event ) {
 		var message = JSON.parse( event.data );
 
 		// waiting for players X_1, ...
+		if( message.type === 'waiting' ) {
+			state_data = message.players;
+
+			$('status').innerText = 'waiting for ' + state_data.join( ', ' );
+		}
 		// no longer waiting for player X
+		else if( message.type === 'not_waiting' ) {
+			// remove message.player from state_data
+
+			$('status').innerText = 'waiting for ' + state_data.join( ', ' );
+		}
+		// game starts
+		else if( message.type === 'start' ) {
+			state = 1;
+			game_data = null;
+
+			// unhide interface elements
+		}
 		// turn of player X
+		else if( message.type === 'turn' ) {
+			// set background to message.turn_index
+			$('status').innerText = 'it\'s ' + message.turn + '\'s turn';
+		}
 		// your turn
+		else if( message.type === 'your_turn' ) {
+			// set background to message.turn_index
+			$('status').innerText = 'it\'s your turn';
+		}
 		// add letter
+		
 		// X challenged Y (challenge phase)
 		// challenge letter added
 		// challenge letter removed
@@ -135,6 +164,7 @@ window.onload = function( event ) {
 		// waiting for votes
 		// no longer waiting for X
 		// figure out voting timeout strategy
+
 
 		if( message.type === 'status' ) {
 			$('status').innerText = message.message;
@@ -178,8 +208,8 @@ window.onload = function( event ) {
 </head>
 
 <body>
+	<div id="status"></div>
 	<div id="interface">
-		<div id="status"></div>
 		<div id="bubble">
 			<span id="word">&nbsp;</span>
 		</div>

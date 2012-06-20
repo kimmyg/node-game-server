@@ -118,7 +118,7 @@ util.inherits( Ghost, EventEmitter );
 Ghost.prototype.startGame = function() {
 	this.players = [];
 
-	for( var i = 0; i < this.n; ++i ) {
+	for( var i = 0; i < n; ++i ) {
 		this.players.push( i );
 	}
 	
@@ -143,9 +143,8 @@ Ghost.prototype.startRound = function() {
 
 	this.state = 0;
 	this.state_data = {
-		i: 0,
 		last: null,
-		turn: this.players[0]
+		turn: 0
 	};
 	
 	this.emit( 'start_round' );
@@ -185,9 +184,8 @@ Ghost.prototype.nextTurn = function() {
 	if( this.state === 0 ) {
 		this.endTurn();
 	
-		this.state_data.i = ( this.state_data.i + 1 ) % this.players.length;
 		this.state_data.last = this.state_data.turn;
-		this.state_data.turn = this.players[ this.state_data.i ];
+		this.state_data.turn = ( this.state_data.turn + 1 ) % this.players.length;
 
 		this.startTurn();
 	}
@@ -466,6 +464,35 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 		this.state_data.connections_left = this.state_data.connections_left - 1;
 
 		if( this.state_data.connections_left === 0 ) {
+			this.game = new Ghost( this.order.length );
+
+			var self = this;
+
+			// atomic transitions
+			// transitions are not atomic if there transitions between which 
+			// the user should do nothing
+
+			this.game.on( 'start', function() {
+				self.broadcast( JSON.stringify({ type: 'start' }) );
+			});
+
+			this.game.on( 'end', function() {
+				self.broadcast( JSON.stringify({ type: 'end' }) );
+				// client should interpret this as a redirect or something
+				// this may be delayed until client acknowledgement
+			});
+
+			this.game.on( 'start_round', function() {
+				self.broadcast( JSON.stringify({ type: 'start_round' }) );
+			});
+
+			this.game.on( 'end_round', function() {
+				self.broadcast( JSON.stringify({ type: 'end_round' }) );
+			});
+
+			this.game.on( 'start_turn', function( player_index ) {
+				self.broadcast( JSON.stringify({ type: '
+
 			console.log( 'starting the game' );
 			// create and start the game
 			this.broadcast( JSON.stringify({ type: 'status', message: 'starting the game' }) );
@@ -625,3 +652,4 @@ Game.prototype.nextTurn = function() {
 
 
 exports.Game = Game;
+
