@@ -53,7 +53,7 @@ window.onload = function( event ) {
 			$('chat').appendChild( p );
 		}
 		else if( message.type === 'start' ) {
-			// refresh the page or something
+			window.location.reload();
 		}
 		else {
 			console.log( 'unrecognized message type ' + message.type );

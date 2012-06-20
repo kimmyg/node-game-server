@@ -7,9 +7,10 @@ var accounts = JSON.parse( fs.readFileSync( 'accounts', 'utf8' ) );
 
 var main = require( './main.js' );
 
-var tokenForName = function( name ) {
+var createToken = function( expiration, name ) {
 	var hash = crypto.createHash( 'sha1' );
 
+	hash.update( expiration, 'utf8' );
 	hash.update( name, 'utf8' );
 	hash.update( 'humblebundle', 'utf8' );
 	
@@ -24,8 +25,8 @@ var hashPassword = function( password ) {
 	return hash.digest( 'hex' );
 }
 
-exports.tokenIsValid = function( name, token ) {
-	return ( token === tokenForName( name ) );
+exports.tokenIsValid = function( expiration, name, token ) { // they may be able to log in but not connect, solve that!
+	return ( ( token === createToken( expiration, name ) ) && ( Date.now() < parseInt( expiration ) ) );
 }
 
 exports.handle = function( request, response ) {
@@ -41,17 +42,20 @@ exports.handle = function( request, response ) {
 
 			if( accounts[ credentials.name ] ) {
 				if( hashPassword( credentials.password ) === accounts[ credentials.name ] ) {
-					console.log( 'correct password' );
+					var expiration = ( Date.now() + 1000 * 60 * 60 * 24 ).toString();
 					
 					response.writeHead( 303, {
 						'Location': url.parse( request.url, true ).query.redirect,
-						'Set-Cookie': [ 'name=' + credentials.name, 'token=' + tokenForName( credentials.name ) ]
+						'Set-Cookie': [ 'expiration=' + expiration, 'name=' + credentials.name, 'token=' + createToken( expiration, credentials.name ) ]
 					});
 					response.end();
 				}
 				else {
 					// password is wrong, redo this thing
 					console.log( 'incorrect password' );
+					
+					response.writeHead( 200, { 'Content-Type': 'text/html' } );
+					response.end( 'The password was incorrect for the account named "' + credentials.name + '".' );
 				}
 			}
 			else {

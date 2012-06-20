@@ -77,7 +77,8 @@ Gathering.prototype.handle = function( ws, message ) {
 
 	if( message.type === 'start' ) {
 		if( sender === this.creator ) {
-			this.emit( 'start' );
+			console.log( 'emitting start' );
+			this.emit( 'start', this.id );
 
 			// emit a start and do the next line in the callback?
 			// this.broadcast( JSON.stringify({ type: 'start' }) );
@@ -93,6 +94,14 @@ Gathering.prototype.handle = function( ws, message ) {
 	else {
 		console.log( 'unrecognized message type ' + message.type );
 	}
+}
+
+Gathering.prototype.createGame = function() {
+	return new NetworkInterface( this.id, this.creator, this.order );
+}
+
+Gathering.prototype.startGame = function() {
+	this.broadcast( JSON.stringify({ type: 'start' }) );
 }
 
 exports.Gathering = Gathering;
@@ -392,24 +401,30 @@ TerminalInterface.prototype.send = function( message ) {
 
 exports.Game = TerminalInterface;
 
-function NetworkInterface( id, players ) {
+function NetworkInterface( id, creator, order ) {
 	this.id = id;
-	this.players = players;
+	this.creator = creator;
+	this.order = order;
 	
 	// if options && options.randomizeOrder then players = players.shuffle
 
 	this.connections = new Map();
 	this.players = new Map();
 
-	this.state = 0; // waiting on everyone, not using state variables below just yet
-	this.state_data = 
-
-	var self = this;
-	
-	this.onMessage = function( arguments ) {
-		self.doSomething();
+	this.state = 0; // waiting on everyone, not using state enums below just yet
+	this.state_data = {
+		connections: {},
+		connections_left: this.order.length
 	};
+
+
+	/*var self = this;
+	
+	this.onMessage = function( argument ) {
+		self.doSomething();
+	};*/
 }
+	
 
 NetworkInterface.prototype.gather = function() { // so it times out
 	var self = this;
@@ -418,13 +433,18 @@ NetworkInterface.prototype.gather = function() { // so it times out
 		// if there are no players, emit an empty game that should be removed
 		// if there are players, give them the option to drop others
 	}, 30000 );
+}
 
 NetworkInterface.STATE_WAITING_ON_EVERYONE = 0;
 
-Gathering.prototype.broadcast = function( message ) {
+NetworkInterface.prototype.broadcast = function( message ) {
 	this.connections.eachKey( function( ws ) {
 		ws.send( message );
 	});
+}
+
+NetworkInterface.prototype.isPlayer = function( player_name ) {
+	return true;
 }
 
 NetworkInterface.prototype.join = function( ws, player_name ) {
@@ -440,13 +460,19 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 		this.connections.set( ws, player_name );
 		this.players.set( player_name, ws );
 
-		// remove from players waiting for
+		this.state_data.connections[ player_name ] = true;
+		this.state_data.connections_left = this.state_data.connections_left - 1;
 
-		if( players.length === 0 ) {
+		if( this.state_data.connections_left === 0 ) {
+			console.log( 'starting the game' );
 			// create and start the game
+			this.broadcast( JSON.stringify({ type: 'status', message: 'starting the game' }) );
 		}
 		else {
-			// broadcast waiting on n players
+			var message = 'waiting for ' + this.state_data.connections_left + ' player' + ( this.state_data.connections_left > 1 ? 's' : '' );
+		
+			console.log( message );
+			this.broadcast( JSON.stringify({ type: 'status', message: message }) );
 		}
 	}
 	else { // suppose it is known the player can join? this occurs when someone drops out and joins
@@ -454,7 +480,11 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 	}
 }
 
-this.game.on( 'turn', function( index ) {
+NetworkInterface.prototype.part = function( ws ) {
+	this.connections.delete( ws );
+}
+
+/*this.game.on( 'turn', function( index ) {
 	var player_name = this.order[ index ];
 
 	if( this.players( player_name ) ) {
@@ -463,13 +493,13 @@ this.game.on( 'turn', function( index ) {
 	else {
 		// broadcast that the player is not connected and will be given 30 seconds before a vote
 	}
-}
+}*/
 
-ws, player_name
+//ws, player_name
 
-var self = this;
+//var self = this;
 
-ws.on( 'close', function() {
+//ws.on( 'close', function() {
 	// how do we determine whether we are waiting for this player's input? it depends on the game
 	// at the same time, this interface is specific to the game
 

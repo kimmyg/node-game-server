@@ -16,10 +16,10 @@ hs.on( 'request', function( request, response ) {
 	if( request.headers.cookie ) {
 		var info = cookie.parse( request.headers.cookie );
 		
-		if( info.name && info.token ) {
-			info = { 'name': info.name, 'token': info.token };
+		if( info.expiration && info.name && info.token ) {
+			info = { 'expiration': info.expiration, 'name': info.name, 'token': info.token };
 		
-			if( login.tokenIsValid( info.name, info.token ) ) {
+			if( login.tokenIsValid( info.expiration, info.name, info.token ) ) {
 				var components = url.parse( request.url ).pathname.split( '/' ).slice( 1 );
 				
 				if( components[0] === '' ) {
@@ -61,10 +61,10 @@ wss.on( 'connection', function( ws ) {
 	if( request.headers.cookie ) {
 		var info = cookie.parse( request.headers.cookie );
 		
-		if( info.name && info.token ) {
-			info = { 'name': info.name, 'token': info.token };
+		if( info.expiration && info.name && info.token ) {
+			info = { 'expiration': info.expiration, 'name': info.name, 'token': info.token };
 		
-			if( login.tokenIsValid( info.name, info.token ) ) {
+			if( login.tokenIsValid( info.expiration, info.name, info.token ) ) {
 				var components = url.parse( request.url ).pathname.split( '/' ).slice( 1 );
 				
 				fs.stat( 'games/' + components[0], function( error, stats ) {

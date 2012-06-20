@@ -72,6 +72,7 @@ exports.watch = function( ws ) {
 	
 	var add_gameCB = function( id, creator ) {
 		ws.send( JSON.stringify({ type: 'add_game', id: id, name: creator }) );
+	};
 
 	var removeCB = function( id ) {
 		ws.send( JSON.stringify({ type: 'remove', id: id }) );
@@ -96,12 +97,10 @@ exports.watch = function( ws ) {
 	gatherings.eachValue( function( gathering ) {
 		ws.send( JSON.stringify({ type: 'add_gathering', id: gathering.id, name: gathering.creator }) );
 	});
-
-	for( var id in gatherings ) {
-		if( gatherings.hasOwnProperty( id ) ) {
-			ws.send( JSON.stringify({ type: 'add_gathering', id: id, name: gatherings[id].creator }) );
-		}
-	}
+	
+	games.eachValue( function( game ) {
+		ws.send( JSON.stringify({ type: 'add_game', id: game.id, name: game.creator }) );
+	});
 }
 
 // gathering events:
@@ -123,7 +122,7 @@ exports.join = function( id, ws, player_name ) {
 			
 		gatherings[ id ] = gathering;
 		
-		emitter.emit( 'create', gathering.id, gathering.creator );
+		emitter.emit( 'add_gathering', gathering.id, gathering.creator );
 		
 		gathering.on( 'empty', function() {
 			delete gatherings[ id ];
@@ -135,6 +134,19 @@ exports.join = function( id, ws, player_name ) {
 		});
 
 		gathering.on( 'start', function( id ) {
+			console.log( 'caught start, creating game' );
+		
+			var game = gathering.createGame();
+			
+			delete gatherings[ id ];
+			games[ id ] = game;
+			
+			console.log( 'starting game (broadcasting refresh)' );
+			gathering.startGame();
+			
+			emitter.emit( 'remove', id );
+			emitter.emit( 'add_game', game.id, game.creator );
+		
 			// do the manager stuff necessary so that when clients reconnect,
 			// they will connect to the game
 			// send a gathering broadcast.
@@ -149,7 +161,12 @@ exports.join = function( id, ws, player_name ) {
 		});
 	}
 	else if( games.hasOwnProperty( id ) ) {
-		// join the game here
+		var game = games[ id ];
+	
+		game.join( ws, player_name );
+		ws.on( 'close', function() {
+			game.part( ws );
+		});
 	}
 	else {
 		console.log( 'whoa, rogue id: ' + id );
@@ -159,7 +176,7 @@ exports.join = function( id, ws, player_name ) {
 var getUnusedId = function() {
 	var id = (Math.random() * 65536 * 65536).toString( 16 );
 
-	while( in_waiting.hasOwnProperty( id ) || gatherings.hasOwnProperty( id ) ) {
+	while( in_waiting.hasOwnProperty( id ) || gatherings.hasOwnProperty( id ) || games.hasOwnProperty( id ) ) {
 		id = (Math.random() * 65536 * 65536).toString( 16 );
 	}
 	
@@ -175,5 +192,19 @@ exports.createGathering = function( creator ) {
 }
 
 exports.playerCanJoin = function( id, player_name ) {
-	return ( ( in_waiting.hasOwnProperty( id ) && in_waiting[ id ].creator === player_name ) || gatherings.hasOwnProperty( id ) );
+	return ( ( in_waiting.hasOwnProperty( id ) && in_waiting[ id ].creator === player_name ) || gatherings.hasOwnProperty( id ) || ( games.hasOwnProperty( id ) && games[ id ].isPlayer( player_name ) ) );
+}
+
+exports.assetForId = function( id ) {
+	if( in_waiting.hasOwnProperty( id ) || gatherings.hasOwnProperty( id ) ) {
+		console.log( 'said gather.html' );
+		console.log( gatherings );
+		console.log( games );
+		return 'gather.html';
+	}
+	else if( games.hasOwnProperty( id ) ) {
+		console.log( 'said game.html' );
+		return 'game.html';
+	}
+	else throw new Error( 'no asset for id ' + id );
 }

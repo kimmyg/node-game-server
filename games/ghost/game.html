@@ -103,7 +103,6 @@ div {
 }
 </style>
 <script type="text/javascript">
-<script type="text/javascript">
 function $( id ) {
 	return document.getElementById( id );
 }
@@ -137,10 +136,10 @@ window.onload = function( event ) {
 		// no longer waiting for X
 		// figure out voting timeout strategy
 
-		if( message.type === '' ) {
-
+		if( message.type === 'status' ) {
+			$('status').innerText = message.message;
 		}
-		if( message.type === 'turn' ) {
+		else if( message.type === 'turn' ) {
 			$('status').innerText = 'It\'s your turn.';
 		}
 
@@ -178,8 +177,9 @@ window.onload = function( event ) {
 </script>
 </head>
 
-<body id="main">
+<body>
 	<div id="interface">
+		<div id="status"></div>
 		<div id="bubble">
 			<span id="word">&nbsp;</span>
 		</div>
@@ -231,34 +231,7 @@ window.onload = function( event ) {
 			
 		</div>-->
 	</div>
-	<div id="scorecard">
-		<table id="scorecard_table">
-			<thead>
-				<tr>
-					<td>a</td>
-					<td>b</td>
-					<td>c</td>
-				</tr>
-			</thead>
-			<tr>
-				<td><a class="gray button" onclick="remove_player('Kimball');">-</a>
-				<td>Kimball</td>
-				<td>0</td>
-			</tr>
-			<tr>
-				<td><a class="gray button" onclick="remove_player('Bethany');">-</a>
-				<td>Bethany</td>
-				<td>0</td>
-			</tr>
-			<tr>
-				<td><a class="gray button" onclick="remove_player('Frank');">-</a>
-				<td>Frank</td>
-				<td>0</td>
-			</tr>
-		</table>
-
-		<a class="gray button" onclick="hide_scorecard();start_round();start_turn();">Continue</a>
-	</div>
+	
 </body>
 
 </html>

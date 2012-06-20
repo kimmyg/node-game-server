@@ -18,7 +18,7 @@ exports.handle = function( user_info, parameters, response ) {
 			}
 			else {
 				if( game_module.playerCanJoin( parameters[1], user_info.name ) ) {
-					fs.readFile( 'games/' + parameters[0] + '/gather.html', 'utf8', function( error, data ) {
+					fs.readFile( 'games/' + parameters[0] + '/' + game_module.assetForId( parameters[1] ), 'utf8', function( error, data ) {
 						if( error ) {
 							redirect( response, '/', 'could not load games/' + parameters[0] + 'gather.html' );
 						}
