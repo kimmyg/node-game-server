@@ -413,10 +413,9 @@ function NetworkInterface( id, creator, order ) {
 	this.connections = new Map();
 	this.players = new Map();
 
-	this.state = 0; // waiting on everyone, not using state enums below just yet
+	this.state = 3; // waiting on everyone, not using state enums below just yet
 	this.state_data = {
-		connections: {},
-		connections_left: this.order.length
+		connections: []
 	};
 
 
@@ -458,23 +457,49 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 		// change this player to disconnected or something
 	});
 
-	if( this.state === 0 ) {
+	if( this.state === 3 ) { // waiting to start the game
+		this.broadcast( JSON.stringify({ type: 'join', player: player_name });
+
 		this.connections.set( ws, player_name );
 		this.players.set( player_name, ws );
 
-		this.state_data.connections[ player_name ] = true;
-		this.state_data.connections_left = this.state_data.connections_left - 1;
+		this.state_data.connections.push( player_name );
 
-		if( this.state_data.connections_left === 0 ) {
+		ws.send( JSON.stringify({ type: 'init', players: this.order, joined: this.state_data.connections }) );
+
+		if( this.state_data.connections.length === this.order.length ) {
+			this.game = new Ghost( this.order.length );
+
+			var self = this;
+
+			// atomic transitions
+			// transitions are not atomic if there transitions between which 
+			// the user should do nothing
+
+			this.game.on( 'start', function() {
+				self.broadcast( JSON.stringify({ type: 'start' }) );
+			});
+
+			this.game.on( 'end', function() {
+				self.broadcast( JSON.stringify({ type: 'end' }) );
+				// client should interpret this as a redirect or something
+				// this may be delayed until client acknowledgement
+			});
+
+			this.game.on( 'start_round', function() {
+				self.broadcast( JSON.stringify({ type: 'start_round' }) );
+			});
+
+			this.game.on( 'end_round', function() {
+				self.broadcast( JSON.stringify({ type: 'end_round' }) );
+			});
+
+			this.game.on( 'start_turn', function( player_index ) {
+				self.broadcast( JSON.stringify({ type: '
+
 			console.log( 'starting the game' );
 			// create and start the game
 			this.broadcast( JSON.stringify({ type: 'status', message: 'starting the game' }) );
-		}
-		else {
-			var message = 'waiting for ' + this.state_data.connections_left + ' player' + ( this.state_data.connections_left > 1 ? 's' : '' );
-		
-			console.log( message );
-			this.broadcast( JSON.stringify({ type: 'status', message: message }) );
 		}
 	}
 	else { // suppose it is known the player can join? this occurs when someone drops out and joins
@@ -625,3 +650,4 @@ Game.prototype.nextTurn = function() {
 
 
 exports.Game = Game;
+
