@@ -77,7 +77,6 @@ Gathering.prototype.handle = function( ws, message ) {
 
 	if( message.type === 'start' ) {
 		if( sender === this.creator ) {
-			console.log( 'emitting start' );
 			this.emit( 'start', this.id );
 
 			// emit a start and do the next line in the callback?
@@ -97,7 +96,7 @@ Gathering.prototype.handle = function( ws, message ) {
 }
 
 Gathering.prototype.createGame = function() {
-	return new NetworkInterface( this.id, this.creator, this.order );
+	return new NetworkInterface( this.id, this.creator, this.order.concat() );
 }
 
 Gathering.prototype.startGame = function() {
@@ -407,7 +406,7 @@ function NetworkInterface( id, creator, order ) {
 	this.id = id;
 	this.creator = creator;
 	this.order = order;
-	
+
 	// if options && options.randomizeOrder then players = players.shuffle
 
 	this.connections = new Map();
@@ -458,14 +457,14 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 	});
 
 	if( this.state === 3 ) { // waiting to start the game
-		this.broadcast( JSON.stringify({ type: 'join', player: player_name });
+		this.broadcast( JSON.stringify({ type: 'join', player: player_name }) );
 
 		this.connections.set( ws, player_name );
 		this.players.set( player_name, ws );
 
 		this.state_data.connections.push( player_name );
 
-		ws.send( JSON.stringify({ type: 'init', players: this.order, joined: this.state_data.connections }) );
+		ws.send( JSON.stringify({ type: 'init', players: this.order, present: this.state_data.connections }) );
 
 		if( this.state_data.connections.length === this.order.length ) {
 			this.game = new Ghost( this.order.length );
@@ -495,11 +494,10 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			});
 
 			this.game.on( 'start_turn', function( player_index ) {
-				self.broadcast( JSON.stringify({ type: '
+				//self.broadcast( JSON.stringify({ type: '
+			});
 
-			console.log( 'starting the game' );
-			// create and start the game
-			this.broadcast( JSON.stringify({ type: 'status', message: 'starting the game' }) );
+			this.broadcast( JSON.stringify({ type: 'start' }) );
 		}
 	}
 	else { // suppose it is known the player can join? this occurs when someone drops out and joins
@@ -508,7 +506,11 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 }
 
 NetworkInterface.prototype.part = function( ws ) {
-	this.connections.delete( ws );
+	var player_name = this.connections.delete( ws );
+
+	this.players.delete( player_name );
+
+	this.broadcast( JSON.stringify({ type: 'left', player: player_name }) );
 }
 
 /*this.game.on( 'turn', function( index ) {
