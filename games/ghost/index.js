@@ -134,14 +134,11 @@ exports.join = function( id, ws, player_name ) {
 		});
 
 		gathering.on( 'start', function( id ) {
-			console.log( 'caught start, creating game' );
-		
 			var game = gathering.createGame();
 			
 			delete gatherings[ id ];
 			games[ id ] = game;
 			
-			console.log( 'starting game (broadcasting refresh)' );
 			gathering.startGame();
 			
 			emitter.emit( 'remove', id );
@@ -197,13 +194,9 @@ exports.playerCanJoin = function( id, player_name ) {
 
 exports.assetForId = function( id ) {
 	if( in_waiting.hasOwnProperty( id ) || gatherings.hasOwnProperty( id ) ) {
-		console.log( 'said gather.html' );
-		console.log( gatherings );
-		console.log( games );
 		return 'gather.html';
 	}
 	else if( games.hasOwnProperty( id ) ) {
-		console.log( 'said game.html' );
 		return 'game.html';
 	}
 	else throw new Error( 'no asset for id ' + id );
