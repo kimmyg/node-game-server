@@ -5,51 +5,47 @@
 <meta name="viewport" content="width=device-width"/>
 <style type="text/css">
 body {
+	margin: 0;
+	padding: 0;
+}
+
+body {
 	background: #aaa;
 	font-family: sans-serif;
 	text-align: center;
 	text-color: white;
-	margin-top: 0;
 	color: #353535;
 }
 
 #players_container {
-	position: absolute;
 	width: 100%;
-	height: 100%;
-	left: 0;
-	top: 0;
+	height: 32px;
+
+	margin: 0;
+	padding: 0;
+
+	border-spacing: 4px;
 }
 
-#players_table {
-	border-spacing: 0.25em;
-}
-
-#scoreboard td {
-	text-align: center;
-	vertical-align: middle;
-
-	font-weight: bold;
-	-webkit-border-radius: 0.5em;
-}
-
-
-div {
-	//border: solid black 1px;
+#players_container td {
+	border-radius: 6px;
+	padding: 4px 8px;
+	border: solid #777 1px;
 }
 
 #bubble {
 	background-color: white;
 	border: solid #777 1px;
 	color: #333;
-	//font-family: serif;
 	font-size: 2em;
 	text-align: center;
 	padding: 0;
-	margin-top: 0.5em;
-	margin-bottom: 0.3em;
+	margin: 0 4px;
+	border-radius: 8px;
+}
 
-	-webkit-border-radius: 0.5em;
+#letters {
+	margin-top: 6px;
 }
 
 .button {
@@ -129,9 +125,9 @@ function $( id ) {
 }
 
 window.onload = function( event ) {
-	$('interface').style.display = 'none';
+	$('interface').classList.add( 'hidden' );
 
-	var players = [];
+	var players = null;
 
 	var word = null;
 
@@ -147,14 +143,15 @@ window.onload = function( event ) {
 
 		// just connected, init
 		if( message.type === 'init' ) {
-			console.log( message );
+			console.log( 'init' );
 
 			players = message.players;
 
 			for( var i = 0; i < players.length; ++i ) {
 				var td = document.createElement( 'td' );
 
-				td.className = 'absent';
+				td.classList.add( 'player_' + i );
+				td.classList.add( 'absent' )
 				td.id = players[i];
 				td.innerText = players[i];
 
@@ -162,22 +159,29 @@ window.onload = function( event ) {
 			}
 
 			for( var i = 0; i < message.present; ++i ) {
-				$( message.present[i] ).removeClass( 'absent' );
+				$( message.present[i] ).classList.remove( 'absent' );
 			}
+
+			// if we're in the game (specified by state), show the interface
+			// and change it according to the actual state
 		}
 		// no longer waiting for player X
 		else if( message.type === 'join' ) {
-			$( message.player ).removeClass( 'absent' );
+			console.log( 'join ' + message.player );
+			$( message.player ).classList.remove( 'absent' );
 		}
 		else if( message.type === 'left' ) {
-			$( message.player ).addClass( 'absent' );
+			console.log( 'left ' + message.player );
+			$( message.player ).classList.add( 'absent' );
 		}
 		// game starts
 		else if( message.type === 'start' ) {
+			console.log( 'start' );
+
 			state = 1;
 			state_data = null;
 
-			// unhide interface elements
+			$('interface').classList.remove( 'hidden' );
 		}
 		// round starts
 		else if( message.type === 'round_start' ) {
@@ -227,7 +231,7 @@ window.onload = function( event ) {
 		// figure out voting timeout strategy
 
 
-		if( message.type === 'status' ) {
+		else if( message.type === 'status' ) {
 			$('status').innerText = message.message;
 		}
 		else if( message.type === 'turn' ) {
@@ -269,7 +273,7 @@ window.onload = function( event ) {
 </head>
 
 <body>
-	<table id="players_container"><td id="players"></td></table>
+	<table id="players_container"><tr id="players"></td></table>
 	<div id="status"></div>
 	<div id="interface">
 		<div id="bubble">
