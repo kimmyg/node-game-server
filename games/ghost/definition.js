@@ -67,7 +67,7 @@ Gathering.prototype.indexForPlayerName = function( player_name ) {
 }
 
 Gathering.prototype.broadcast = function( message ) {
-	this.connections.eachKey( function( ws ) {
+	this.connections.each( function( ws, player_name ) {
 		ws.send( message );
 	});
 }
@@ -114,7 +114,7 @@ function Ghost( n ) {
 
 util.inherits( Ghost, EventEmitter );
 
-Ghost.prototype.startGame = function() {
+Ghost.prototype.start = function() {
 	this.players = [];
 
 	for( var i = 0; i < this.n; ++i ) {
@@ -123,18 +123,18 @@ Ghost.prototype.startGame = function() {
 	
 	this.emit( 'start' );
 	
-	if( this.players.length > 1 ) {
+	if( this.players.length > 0 ) { // change this to 1 for actual game!
 		this.startRound();
 	}
 	else {
-		this.endGame();
+		this.end();
 	}
 }
 
-Ghost.prototype.endGame = function() {
+Ghost.prototype.end = function() {
+	this.emit( 'end', this.players[0] );
+	
 	delete this.players;
-
-	this.emit( 'end' );
 }
 
 Ghost.prototype.startRound = function() {
@@ -147,7 +147,7 @@ Ghost.prototype.startRound = function() {
 		turn: this.players[0]
 	};
 	
-	this.emit( 'start_round' );
+	this.emit( 'round-start' );
 	
 	this.startTurn();
 }
@@ -158,26 +158,26 @@ Ghost.prototype.endRound = function() {
 	delete this.state;
 	delete this.state_data;
 	
-	this.emit( 'end_round' );
+	this.emit( 'round-end' );
 }
 
 Ghost.prototype.nextRound = function() {
 	this.endRound();
 	
-	if( this.players.length > 1 ) {
+	if( this.players.length > 0 ) { // change for real game
 		this.startRound();
 	}
 	else {
-		this.endGame();
+		this.end();
 	}
 }
 
 Ghost.prototype.startTurn = function() {
-	this.emit( 'start_turn', this.state_data.turn );
+	this.emit( 'turn-start', this.state_data.turn );
 }
 
 Ghost.prototype.endTurn = function() {
-	this.emit( 'end_turn', this.state_data.turn );
+	this.emit( 'turn-end', this.state_data.turn );
 }
 
 Ghost.prototype.nextTurn = function() {
@@ -198,12 +198,12 @@ Ghost.prototype.nextTurn = function() {
 // error messages are critical if the game logic puts the game in an inconsistent state, or there is some other corruption
 // error messages are fail or warn if the game is sent an invalid message
 
-Ghost.prototype.add = function( sender, letter ) {
+Ghost.prototype.msg_add = function( sender, letter ) {
 	if( this.state === 0 ) {
 		if( this.state_data.turn === sender ) {
 			this.word.push( letter );
 
-			this.emit( 'add', sender, letter );
+			this.emit( 'letter-added', sender, letter );
 			
 			this.nextTurn();
 		}
@@ -229,13 +229,13 @@ Ghost.prototype.add = function( sender, letter ) {
 	}
 }
 
-Ghost.prototype.remove = function( sender ) {
+Ghost.prototype.msg_remove = function( sender ) {
 	if( this.state === 2 ) {
 		if( this.state_data.challenged === sender ) {			
 			if( this.word.length > this.prefix_length ) {
 				this.word.pop();
 
-				this.emit( 'remove', sender );
+				this.emit( 'letter-removed', sender );
 			}
 			else {
 				this.emit( 'fail', sender, 'can\'t remove more letters' );
@@ -253,7 +253,7 @@ Ghost.prototype.remove = function( sender ) {
 	}
 }
 
-Ghost.prototype.declare = function( sender ) {
+Ghost.prototype.msg_declare = function( sender ) {
 	if( this.state === 0 ) {
 		if( this.state_data.turn === sender ) {			
 			if( this.word.length >= 3 ) {
@@ -297,7 +297,7 @@ Ghost.prototype.declare = function( sender ) {
 	}
 }
 
-Ghost.prototype.challenge = function( sender ) {
+Ghost.prototype.msg_challenge = function( sender ) {
 	if( this.state === 0 ) {
 		if( this.state_data.turn === sender ) {
 			if( this.word.length >= 2 ) {
@@ -405,7 +405,12 @@ exports.Game = TerminalInterface;
 function NetworkInterface( id, creator, order ) {
 	this.id = id;
 	this.creator = creator;
-	this.order = order;
+	this.index_to_name = order;
+	
+	this.name_to_index = {};
+	for( var i = 0; i < this.index_to_name.length; ++i ) {
+		this.name_to_index[ this.index_to_name[i] ] = i;
+	}
 
 	// if options && options.randomizeOrder then players = players.shuffle
 
@@ -418,11 +423,15 @@ function NetworkInterface( id, creator, order ) {
 	};
 
 
-	/*var self = this;
+	var self = this;
 	
-	this.onMessage = function( argument ) {
-		self.doSomething();
-	};*/
+	this.onMessage = function( message ) {
+		self.handle( this, message );
+	};
+	
+	this.onClose = function() {
+		self.part( this );
+	};
 }
 	
 
@@ -438,7 +447,7 @@ NetworkInterface.prototype.gather = function() { // so it times out
 NetworkInterface.STATE_WAITING_ON_EVERYONE = 0;
 
 NetworkInterface.prototype.broadcast = function( message ) {
-	this.connections.eachKey( function( ws ) {
+	this.connections.each( function( ws ) {
 		ws.send( message );
 	});
 }
@@ -448,13 +457,8 @@ NetworkInterface.prototype.isPlayer = function( player_name ) {
 }
 
 NetworkInterface.prototype.join = function( ws, player_name ) {
-	ws.on( 'message', function() {
-		self.handle( ws, message );
-	});
-
-	ws.on( 'close', function() {
-		// change this player to disconnected or something
-	});
+	ws.on( 'message', this.onMessage );
+	ws.on( 'close', this.onClose );
 
 	if( this.state === 3 ) { // waiting to start the game
 		this.broadcast( JSON.stringify({ type: 'join', player: player_name }) );
@@ -464,10 +468,10 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 
 		this.state_data.connections.push( player_name );
 
-		ws.send( JSON.stringify({ type: 'init', players: this.order, present: this.state_data.connections }) );
+		ws.send( JSON.stringify({ type: 'init', players: this.index_to_name, present: this.state_data.connections }) );
 
-		if( this.state_data.connections.length === this.order.length ) {
-			this.game = new Ghost( this.order.length );
+		if( this.state_data.connections.length === this.index_to_name.length ) {
+			this.game = new Ghost( this.index_to_name.length );
 
 			var self = this;
 
@@ -475,8 +479,27 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			// transitions are not atomic if there transitions between which 
 			// the user should do nothing
 
+			this.game.on( 'critical', function( message ) {
+				console.log( message );
+				//self.broadcast( JSON.strinify({ ty
+			});
+			
+			this.game.on( 'fail', function( player_index, message ) {
+				console.log( player_index );
+				console.log( self.players[ player_index ] );
+				self.players.get( self.players[ player_index ] ).send( JSON.stringify({ type: 'status', message: message }) );
+			});
+
 			this.game.on( 'start', function() {
+				self.state = 0;
+			
 				self.broadcast( JSON.stringify({ type: 'start' }) );
+			});
+			
+			['round-start', 'round-end'].forEach( function( event ) {
+				self.game.on( event, function() {
+					self.broadcast( JSON.stringify({ type: event }) );
+				});
 			});
 
 			this.game.on( 'end', function() {
@@ -485,23 +508,49 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 				// this may be delayed until client acknowledgement
 			});
 
-			this.game.on( 'start_round', function() {
-				self.broadcast( JSON.stringify({ type: 'start_round' }) );
+			this.game.on( 'letter-added', function( player_index, letter ) {
+				self.broadcast( JSON.stringify({ type: 'letter-added', letter: letter }) );
+			});
+			
+			this.game.on( 'letter-removed', function( player_index ) {
+				self.broadcast( JSON.stringify({ type: 'letter-removed' }) );
 			});
 
-			this.game.on( 'end_round', function() {
-				self.broadcast( JSON.stringify({ type: 'end_round' }) );
+			this.game.on( 'turn-start', function( player_index ) {
+				var message = {
+					type: 'turn',
+					turn: player_index
+				}
+				
+				var broadcast_message = JSON.stringify( message );
+				
+				message.own = true;
+				
+				var target_message = JSON.stringify( message );
+				
+				self.connections.each( function( ws, player_name ) {
+					if( self.name_to_index[ player_name ] === player_index ) {
+						ws.send( target_message );
+					}
+					else {
+						ws.send( broadcast_message );
+					}
+				});
+			});
+			
+			this.game.on( 'challenge', function( challenger_index, challenged_index ) {
+				self.broadcast( JSON.stringify({ type: 'challenge', challenger: challenger_index, challenged: challenged_index }) );
+			});
+			
+			this.game.on( 'declare', function( declarer_index ) {
+				self.broadcast( JSON.stringify({ type: 'declare', declarer: declarer_index }) );
 			});
 
-			this.game.on( 'start_turn', function( player_index ) {
-				//self.broadcast( JSON.stringify({ type: '
-			});
-
-			this.broadcast( JSON.stringify({ type: 'start' }) );
+			this.game.start();
 		}
 	}
 	else { // suppose it is known the player can join? this occurs when someone drops out and joins
-		this.game.getState();
+		ws.send( JSON.stringify({ type: 'init', players: this.index_to_name, present: this.state_data.connections, state: this.game.getState() }) );
 	}
 }
 
@@ -511,6 +560,22 @@ NetworkInterface.prototype.part = function( ws ) {
 	this.players.delete( player_name );
 
 	this.broadcast( JSON.stringify({ type: 'left', player: player_name }) );
+}
+
+NetworkInterface.prototype.handle = function( ws, message ) {
+	var args = message.split( '|' );
+	
+	message = args[0];
+	
+	if( this.game[ 'msg_' + message ] ) {
+		args[0] = this.name_to_index[ this.connections.get( ws ) ];
+		this.game[ 'msg_' + message ].apply( this.game, args );
+	}
+	else {
+		// send unrecognized message
+	}
+	// map from ws to player index
+	// send message to game instance
 }
 
 /*this.game.on( 'turn', function( index ) {

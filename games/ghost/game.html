@@ -118,6 +118,10 @@ body {
 .player_5 {
 	background: #abb;
 }
+
+.absent {
+	background: gray;
+}
 </style>
 <script type="text/javascript">
 function $( id ) {
@@ -141,10 +145,10 @@ window.onload = function( event ) {
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
 
+		console.log( message );
+
 		// just connected, init
 		if( message.type === 'init' ) {
-			console.log( 'init' );
-
 			players = message.players;
 
 			for( var i = 0; i < players.length; ++i ) {
@@ -158,66 +162,103 @@ window.onload = function( event ) {
 				$('players').appendChild( td );
 			}
 
-			for( var i = 0; i < message.present; ++i ) {
+			for( var i = 0; i < message.present.length; ++i ) {
 				$( message.present[i] ).classList.remove( 'absent' );
 			}
 
-			// if we're in the game (specified by state), show the interface
-			// and change it according to the actual state
+			if( message.state ) {
+				console.log( 'state' );
+				console.log( message.state );
+			}
 		}
 		// no longer waiting for player X
 		else if( message.type === 'join' ) {
-			console.log( 'join ' + message.player );
 			$( message.player ).classList.remove( 'absent' );
 		}
 		else if( message.type === 'left' ) {
-			console.log( 'left ' + message.player );
 			$( message.player ).classList.add( 'absent' );
 		}
 		// game starts
 		else if( message.type === 'start' ) {
-			console.log( 'start' );
-
-			state = 1;
-			state_data = null;
-
+			$('turn-interface').classList.add( 'hidden' );
+			$('declare-interface').classList.add( 'hidden' );
+		
 			$('interface').classList.remove( 'hidden' );
 		}
+		// game ends
+		else if( message.type === 'end' ) {
+			// ???
+		}
 		// round starts
-		else if( message.type === 'round_start' ) {
+		else if( message.type === 'round-start' ) {
 			word = [];
 
 			state = 0;
-			state_data = null;
+			state_data = false;
 			
+			$('declare-button').classList.add( 'hidden' );
+			$('challenge-button').classList.add( 'hidden' );
+			
+			$('turn-interface').classList.remove( 'hidden' );
 		}
-
+		// round ends
+		else if( message.type === 'round-end' ) {
+			word = null;
+			
+			state = null;
+			state_data = null;
+		}
 		// turn of player X
 		else if( message.type === 'turn' ) {
-			// set background to message.turn_index
-			$('status').innerText = 'it\'s ' + message.turn + '\'s turn';
-		}
-		// your turn
-		else if( message.type === 'your_turn' ) {
-			// set background to message.turn_index
-			$('status').innerText = 'it\'s your turn';
+			state_data = message.own || false;
+			$('main').className = 'player_' + message.turn;
+			
+			if( message.own ) {
+				$('status').innerText = 'it\'s your turn';
+			}
+			else {
+				$('status').innerText = 'it\'s ' + players[ message.turn ] + '\'s turn';
+			}
 		}
 		// add letter
-		else if( message.type === 'letter' ) {
+		else if( message.type === 'letter-added' ) {
 			word.push( message.letter );
 
+			$('word').innerText = word.join( '' );
+			
+			if( word.length >= 2 ) {
+				$('challenge-button').classList.remove( 'hidden' );
+				
+				if( word.length >= 3 ) {
+					$('declare-button').classList.remove( 'hidden' );
+				}
+			}
+			
+			
+		}
+		// remove letter
+		else if( message.type === 'letter-removed' ) {
+			word.pop();
 			$('word').innerText = word.join( '' );
 		}
 		// X challenged Y (challenge phase)
 		else if( message.type === 'challenge' ) {
-			state = 3;
-			state_data = {
-				challenger:1
-			};
+			state = 2;
+			state_data = message.is_challenged || false;
 		}
 		// challenge letter added
 		// challenge letter removed
 		// challenge word declared (voting phase)
+		else if( message.type === 'declare' ) {
+			$('turn-interface').classList.add( 'hidden' );
+			
+			$('declarer-name').innerText = players[ message.declarer ];
+			$('declared-word').innerText = word.join( '' );
+			$('affirmed-declared-word').innerText = word.join( '' );
+			$('negated-declared-word').innerText = word.join( '' );
+			
+			$('declare-interface').classList.remove( 'hidden' );
+		}
 		// waiting for players X_1, ... to vote
 		// no longer waiting for player X to vote
 		// voted that A, X is out
@@ -234,32 +275,6 @@ window.onload = function( event ) {
 		else if( message.type === 'status' ) {
 			$('status').innerText = message.message;
 		}
-		else if( message.type === 'turn' ) {
-			$('status').innerText = 'It\'s your turn.';
-		}
-
-
-		else if( message.type === 'players' ) {
-			for( var i = 0; i < message.players.length; ++i ) {
-				var li = document.createElement( 'li' );
-			
-				li.id = message.players[i];
-				li.innerText = message.players[i];
-		
-				$('players').appendChild( li );
-			}
-		}
-		else if( message.type === 'add' ) {
-			var li = document.createElement( 'li' );
-				
-			li.id = message.name;
-			li.innerText = message.name;
-			
-			$('players').appendChild( li );
-		}
-		else if( message.type === 'remove' ) {
-			$('players').removeChild( $( message.name ) );
-		}
 		else {
 			console.log( 'unrecognized message type ' + message.type );
 		}
@@ -268,57 +283,75 @@ window.onload = function( event ) {
 
 	//ws.onclose = function( event ) {}
 	//ws.onerror = function( event ) {}
+	
+	var add_letter = function( event ) {
+		ws.send( 'add|' + event.target.innerText );
+	}
+	
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split( '' ).forEach( function( letter ) {
+		$('button_' + letter ).onclick = add_letter;
+	});
+	
+	$('challenge-button').onclick = function( event ) {
+		ws.send( 'challenge' );
+	};
+	
+	$('declare-button').onclick = function( event ) {
+		ws.send( 'declare' );
+	};
 }
 </script>
 </head>
 
-<body>
+<body id="main">
 	<table id="players_container"><tr id="players"></td></table>
 	<div id="status"></div>
 	<div id="interface">
 		<div id="bubble">
 			<span id="word">&nbsp;</span>
 		</div>
-		<div id="letters">
-			<a class="gray button" onclick="add_letter(this);">Q</a>
-			<a class="gray button" onclick="add_letter(this);">W</a>
-			<a class="gray button" onclick="add_letter(this);">E</a>
-			<a class="gray button" onclick="add_letter(this);">R</a>
-			<a class="gray button" onclick="add_letter(this);">T</a>
-			<a class="gray button" onclick="add_letter(this);">Y</a>
-			<a class="gray button" onclick="add_letter(this);">U</a>
-			<a class="gray button" onclick="add_letter(this);">I</a>
-			<a class="gray button" onclick="add_letter(this);">O</a>
-			<a class="gray button" onclick="add_letter(this);">A</a>
-			<a class="gray button" onclick="add_letter(this);">S</a>
-			<a class="gray button" onclick="add_letter(this);">D</a>
-			<a class="gray button" onclick="add_letter(this);">F</a>
-			<a class="gray button" onclick="add_letter(this);">G</a>
-			<a class="gray button" onclick="add_letter(this);">H</a>
-			<a class="gray button" onclick="add_letter(this);">J</a>
-			<a class="gray button" onclick="add_letter(this);">K</a>
-			<a class="gray button" onclick="add_letter(this);">L</a>
-			<a class="gray button" onclick="add_letter(this);">Z</a>
-			<a class="gray button" onclick="add_letter(this);">X</a>
-			<a class="gray button" onclick="add_letter(this);">C</a>
-			<a class="gray button" onclick="add_letter(this);">V</a>
-			<a class="gray button" onclick="add_letter(this);">B</a>
-			<a class="gray button" onclick="add_letter(this);">N</a>
-			<a class="gray button" onclick="add_letter(this);">M</a>
-			<a class="gray button" onclick="add_letter(this);">P</a>
+		<div id="turn-interface">
+			<div id="letters">
+				<a class="gray button" id="button_Q">Q</a>
+				<a class="gray button" id="button_W">W</a>
+				<a class="gray button" id="button_E">E</a>
+				<a class="gray button" id="button_R">R</a>
+				<a class="gray button" id="button_T">T</a>
+				<a class="gray button" id="button_Y">Y</a>
+				<a class="gray button" id="button_U">U</a>
+				<a class="gray button" id="button_I">I</a>
+				<a class="gray button" id="button_O">O</a>
+				<a class="gray button" id="button_A">A</a>
+				<a class="gray button" id="button_S">S</a>
+				<a class="gray button" id="button_D">D</a>
+				<a class="gray button" id="button_F">F</a>
+				<a class="gray button" id="button_G">G</a>
+				<a class="gray button" id="button_H">H</a>
+				<a class="gray button" id="button_J">J</a>
+				<a class="gray button" id="button_K">K</a>
+				<a class="gray button" id="button_L">L</a>
+				<a class="gray button" id="button_Z">Z</a>
+				<a class="gray button" id="button_X">X</a>
+				<a class="gray button" id="button_C">C</a>
+				<a class="gray button" id="button_V">V</a>
+				<a class="gray button" id="button_B">B</a>
+				<a class="gray button" id="button_N">N</a>
+				<a class="gray button" id="button_M">M</a>
+				<a class="gray button" id="button_P">P</a>
+			</div>
+			<div id="signal">
+				<span id="challenge-button">
+					<a class="gray button" onclick="challenge();">CHALLENGE</a>
+				</span>
+				<span id="declare-button">
+					<a class="gray button" onclick="declare();">DECLARE</a>
+				</span>
+			</div>
 		</div>
-		<div id="signal">
-			<span id="declare_button">
-				<a class="gray button" onclick="declare();">DECLARE</a>
-			</span>
-			<span id="challenge_button">
-				<a class="gray button" onclick="challenge();">CHALLENGE</a>
-			</span>
-		</div>
-		<div id="confirm_declare">
-			<span id="declare_name"></span> declares <span id="declare_word"></span> a word.
-			<a class="gray button" onclick="declare_affirm();"><span id="declare_affirm_word"></span> is a word</a>
-			<a class="gray button" onclick="declare_negate();"><span id="declare_negate_word"></span> is <em>not</em> a word</a>
+		<div id="declare-interface">
+			<span id="declarer-name"></span> declares <span id="declared-word"></span> a word.
+			<a class="gray button" onclick="declare_affirm();"><span id="affirmed-declared-word"></span> is a word</a>
+			<a class="gray button" onclick="declare_negate();"><span id="negated-declared-word"></span> is <em>not</em> a word</a>
 		</div>
 		<!--<div id="confirm_challenge">
 			<span id="challenge_name"></span> challenges <span id="challenge_word"></span>.
