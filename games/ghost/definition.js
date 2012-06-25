@@ -218,7 +218,7 @@ Ghost.prototype.msg_add = function( sender, letter ) {
 		if( this.state_data.challenged === sender ) {
 			this.word.push( letter );
 
-			this.emit( 'add', sender, letter );
+			this.emit( 'letter-added', sender, letter );
 		}
 		else {
 			this.emit( 'fail', sender, 'only the challenged player can add letters' );
@@ -232,7 +232,7 @@ Ghost.prototype.msg_add = function( sender, letter ) {
 Ghost.prototype.msg_remove = function( sender ) {
 	if( this.state === 2 ) {
 		if( this.state_data.challenged === sender ) {			
-			if( this.word.length > this.prefix_length ) {
+			if( this.word.length > this.state_data.prefix_length ) {
 				this.word.pop();
 
 				this.emit( 'letter-removed', sender );
@@ -485,9 +485,7 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			});
 			
 			this.game.on( 'fail', function( player_index, message ) {
-				console.log( player_index );
-				console.log( self.players[ player_index ] );
-				self.players.get( self.players[ player_index ] ).send( JSON.stringify({ type: 'status', message: message }) );
+				self.players.get( self.index_to_name[ player_index ] ).send( JSON.stringify({ type: 'status', message: message }) );
 			});
 
 			this.game.on( 'start', function() {
@@ -520,7 +518,7 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 				var message = {
 					type: 'turn',
 					turn: player_index
-				}
+				};
 				
 				var broadcast_message = JSON.stringify( message );
 				
@@ -539,7 +537,26 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			});
 			
 			this.game.on( 'challenge', function( challenger_index, challenged_index ) {
-				self.broadcast( JSON.stringify({ type: 'challenge', challenger: challenger_index, challenged: challenged_index }) );
+				var message = {
+					type: 'challenge',
+					challenger: challenger_index,
+					challenged: challenged_index
+				};
+				
+				var broadcast_message = JSON.stringify( message );
+				
+				message.is_challenged = true;
+				
+				var target_message = JSON.stringify( message );
+				
+				self.connections.each( function( ws, player_name ) {
+					if( self.name_to_index[ player_name ] === challenged_index ) {
+						ws.send( target_message );
+					}
+					else {
+						ws.send( broadcast_message );
+					}
+				});
 			});
 			
 			this.game.on( 'declare', function( declarer_index ) {
@@ -570,6 +587,9 @@ NetworkInterface.prototype.handle = function( ws, message ) {
 	if( this.game[ 'msg_' + message ] ) {
 		args[0] = this.name_to_index[ this.connections.get( ws ) ];
 		this.game[ 'msg_' + message ].apply( this.game, args );
+	}
+	else if( message === 'vote' ) {
+		console.log( this.connections.get( ws ) + ' voted ' + args[1] );
 	}
 	else {
 		// send unrecognized message

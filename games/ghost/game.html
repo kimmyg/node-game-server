@@ -196,6 +196,7 @@ window.onload = function( event ) {
 			state = 0;
 			state_data = false;
 			
+			$('backspace-button').classList.add( 'hidden' );
 			$('declare-button').classList.add( 'hidden' );
 			$('challenge-button').classList.add( 'hidden' );
 			
@@ -215,9 +216,11 @@ window.onload = function( event ) {
 			
 			if( message.own ) {
 				$('status').innerText = 'it\'s your turn';
+				$('turn-interface').classList.remove( 'hidden' );
 			}
 			else {
 				$('status').innerText = 'it\'s ' + players[ message.turn ] + '\'s turn';
+				$('turn-interface').classList.add( 'hidden' );
 			}
 		}
 		// add letter
@@ -226,11 +229,13 @@ window.onload = function( event ) {
 
 			$('word').innerText = word.join( '' );
 			
-			if( word.length >= 2 ) {
-				$('challenge-button').classList.remove( 'hidden' );
+			if( state === 0 ) {
+				if( word.length >= 2 ) {
+					$('challenge-button').classList.remove( 'hidden' );
 				
-				if( word.length >= 3 ) {
-					$('declare-button').classList.remove( 'hidden' );
+					if( word.length >= 3 ) {
+						$('declare-button').classList.remove( 'hidden' );
+					}
 				}
 			}
 			
@@ -245,6 +250,20 @@ window.onload = function( event ) {
 		else if( message.type === 'challenge' ) {
 			state = 2;
 			state_data = message.is_challenged || false;
+			
+			$('main').className = 'player_' + message.challenged;
+			
+			if( message.is_challenged ) {
+				$('challenge-button').classList.add( 'hidden' );
+				$('backspace-button').classList.remove( 'hidden' );
+				$('declare-button').classList.remove( 'hidden' );
+
+				$('status').innerText = players[ message.challenger ] + ' has challenged you!';}
+			else {
+				$('turn-interface').classList.add( 'hidden' );
+				
+				$('status').innerText = players[ message.challenger ] + ' has challenged ' + players[ message.challenged ] + '!';
+			}
 		}
 		// challenge letter added
 		// challenge letter removed
@@ -252,8 +271,8 @@ window.onload = function( event ) {
 		else if( message.type === 'declare' ) {
 			$('turn-interface').classList.add( 'hidden' );
 			
-			$('declarer-name').innerText = players[ message.declarer ];
-			$('declared-word').innerText = word.join( '' );
+			$('status').innerText = players[ message.declarer ] + ' declares ' + word.join( '' ) + ' to be a word';
+		
 			$('affirmed-declared-word').innerText = word.join( '' );
 			$('negated-declared-word').innerText = word.join( '' );
 			
@@ -292,12 +311,24 @@ window.onload = function( event ) {
 		$('button_' + letter ).onclick = add_letter;
 	});
 	
+	$('backspace-button').onclick = function( event ) {
+		ws.send( 'remove' );
+	};
+	
 	$('challenge-button').onclick = function( event ) {
 		ws.send( 'challenge' );
 	};
 	
 	$('declare-button').onclick = function( event ) {
 		ws.send( 'declare' );
+	};
+	
+	$('affirm-declared-word').onclick = function( event ) {
+		ws.send( 'vote|1' );
+	};
+	
+	$('negate-declared-word').onclick = function( event ) {
+		ws.send( 'vote|2' );
 	};
 }
 </script>
@@ -339,26 +370,22 @@ window.onload = function( event ) {
 				<a class="gray button" id="button_M">M</a>
 				<a class="gray button" id="button_P">P</a>
 			</div>
-			<div id="signal">
+			<div>
+				<span id="backspace-button">
+					<a class="gray button">BACKSPACE</a>
+				</span>
 				<span id="challenge-button">
-					<a class="gray button" onclick="challenge();">CHALLENGE</a>
+					<a class="gray button">CHALLENGE</a>
 				</span>
 				<span id="declare-button">
-					<a class="gray button" onclick="declare();">DECLARE</a>
-				</span>
+					<a class="gray button">DECLARE</a>
+				</span>		
 			</div>
 		</div>
 		<div id="declare-interface">
-			<span id="declarer-name"></span> declares <span id="declared-word"></span> a word.
-			<a class="gray button" onclick="declare_affirm();"><span id="affirmed-declared-word"></span> is a word</a>
-			<a class="gray button" onclick="declare_negate();"><span id="negated-declared-word"></span> is <em>not</em> a word</a>
+			<a class="gray button"><span id="affirm-declared-word"></span> is a word</a>
+			<a class="gray button"><span id="negate-declared-word"></span> is <em>not</em> a word</a>
 		</div>
-		<!--<div id="confirm_challenge">
-			<span id="challenge_name"></span> challenges <span id="challenge_word"></span>.
-			<a class="gray button" onclick="challenge_affirm();"><span id="challenge_negate_word"></span> does start a word</a>
-			<a class="gray button" onclick="challenge_negate();"><span id="challenge_negate_word"></span> does <em>not</em> start a word</a>
-			
-		</div>-->
 	</div>
 	
 </body>
