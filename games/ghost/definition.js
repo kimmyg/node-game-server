@@ -329,18 +329,18 @@ Ghost.prototype.msg_challenge = function( sender ) {
 
 Ghost.prototype.rule = function( ruling ) {
 	if( this.state === 1 ) {
-		if( ruling === 1 ) {
-			// get rid of defendant
-		}
-		else if( ruling === 2 ) {
-			// get rid of prosecution
+		if( ruling === 1 || ruling === 2 ) {
+			if( ruling === 1 ) {
+				// get rid of defendant
+			}
+			else {
+				// get rid of prosecution
+			}
+			
+			this.nextRound();
 		}
 		else {
 			this.emit( 'warn', 'invalid ruling: ' + ruling );
-		}
-		
-		if( ruling === 1 || ruling === 2 ) {
-			this.nextRound();
 		}
 	}
 	else {
@@ -422,7 +422,6 @@ function NetworkInterface( id, creator, order ) {
 		connections: []
 	};
 
-
 	var self = this;
 	
 	this.onMessage = function( message ) {
@@ -431,6 +430,14 @@ function NetworkInterface( id, creator, order ) {
 	
 	this.onClose = function() {
 		self.part( this );
+	};
+	
+	this.onCritical = function( message ) {
+		console.log( message );
+	};
+	
+	this.onFail = function( player_index, message ) {
+		self.players.get( self.index_to_name[ player_index ] ).send( JSON.stringify({ type: 'fail', message: message }) );
 	};
 }
 	
@@ -444,7 +451,10 @@ NetworkInterface.prototype.gather = function() { // so it times out
 	}, 30000 );
 }
 
-NetworkInterface.STATE_WAITING_ON_EVERYONE = 0;
+NetworkInterface.STATE_TURN = 0;
+NetworkInterface.STATE_DECLARE = 1; // voting done here
+NetworkInterface.STATE_CHALLENGE = 2;
+NetworkInterface.STATE_GATHERING = 3;
 
 NetworkInterface.prototype.broadcast = function( message ) {
 	this.connections.each( function( ws ) {
@@ -471,7 +481,9 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 		ws.send( JSON.stringify({ type: 'init', players: this.index_to_name, present: this.state_data.connections }) );
 
 		if( this.state_data.connections.length === this.index_to_name.length ) {
-			this.game = new Ghost( this.index_to_name.length );
+			this.n = this.index_to_name.length;
+		
+			this.game = new Ghost( this.n );
 
 			var self = this;
 
@@ -479,14 +491,8 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			// transitions are not atomic if there transitions between which 
 			// the user should do nothing
 
-			this.game.on( 'critical', function( message ) {
-				console.log( message );
-				//self.broadcast( JSON.strinify({ ty
-			});
-			
-			this.game.on( 'fail', function( player_index, message ) {
-				self.players.get( self.index_to_name[ player_index ] ).send( JSON.stringify({ type: 'status', message: message }) );
-			});
+			this.game.on( 'critical', this.onCritical );
+			this.game.on( 'fail', this.onFail );
 
 			this.game.on( 'start', function() {
 				self.state = 0;
@@ -560,7 +566,33 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			});
 			
 			this.game.on( 'declare', function( declarer_index ) {
-				self.broadcast( JSON.stringify({ type: 'declare', declarer: declarer_index }) );
+				self.state = 1;
+				self.state_data = {
+					votes: {},
+					votes_left: this.n - 1
+				};
+				
+				self.state_data.votes[ self.index_to_name[ declarer_index ] ] = 1; 
+				
+				var message = {
+					type: 'declare',
+					declarer: declarer_index
+				};
+				
+				var broadcast_message = JSON.stringify( message );
+				
+				message.is_declarer = true;
+				
+				var target_message = JSON.stringify( message );
+				
+				self.connections.each( function( ws, player_name ) {
+					if( self.name_to_index[ player_name ] === declarer_index ) {
+						ws.send( target_message );
+					}
+					else {
+						ws.send( broadcast_message );
+					}
+				});
 			});
 
 			this.game.start();
@@ -576,7 +608,7 @@ NetworkInterface.prototype.part = function( ws ) {
 
 	this.players.delete( player_name );
 
-	this.broadcast( JSON.stringify({ type: 'left', player: player_name }) );
+	this.broadcast( JSON.stringify({ type: 'left', player: this.name_to_index[ player_name ] }) );
 }
 
 NetworkInterface.prototype.handle = function( ws, message ) {
@@ -589,7 +621,25 @@ NetworkInterface.prototype.handle = function( ws, message ) {
 		this.game[ 'msg_' + message ].apply( this.game, args );
 	}
 	else if( message === 'vote' ) {
-		console.log( this.connections.get( ws ) + ' voted ' + args[1] );
+		var player_name = this.connections.get( ws );
+	
+		if( state === 1 ) {
+			var vote = args[1];
+			
+			if( vote === 1 || vote === 2 ) {
+				if( this.state_data.votes[ player_name ] ) {
+				
+				}
+				else {
+				
+				}
+			}
+			else {
+				this.onFail( this.name_to_index[ player_name ], 'not a valid vote' );
+		}
+		else {
+			this.onFail( this.name_to_index[ player_name ], 'cannot vote in this state' );
+		}
 	}
 	else {
 		// send unrecognized message
