@@ -636,6 +636,7 @@ NetworkInterface.prototype.handle = function( ws, message ) {
 			}
 			else {
 				this.onFail( this.name_to_index[ player_name ], 'not a valid vote' );
+			}
 		}
 		else {
 			this.onFail( this.name_to_index[ player_name ], 'cannot vote in this state' );
