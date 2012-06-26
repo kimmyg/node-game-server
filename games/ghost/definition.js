@@ -691,6 +691,62 @@ NetworkInterface.prototype.handle = function( ws, message ) {
 						this.substate.votes[ player_name ] = vote;
 						this.substate.votes_left = this.substate.votes_left - 1;
 					}
+				}
+				else {
+					this.onFail( this.name_to_index[ player_name ], 'not a valid vote' );
+				}
+			}
+		}
+		else {
+			this.onFail( this.name_to_index[ player_name ], 'cannot vote in this state' );
+		}
+	}
+	else {
+		// send unrecognized message
+	}
+	// map from ws to player index
+	// send message to game instance
+}
+
+/*this.game.on( 'turn', function( index ) {
+	var player_name = this.order[ index ];
+
+	if( this.players( player_name ) ) {
+		// handle player
+	}
+	else {
+		// broadcast that the player is not connected and will be given 30 seconds before a vote
+	}
+}*/
+
+//ws, player_name
+
+//var self = this;
+
+//ws.on( 'close', function() {
+	// how do we determine whether we are waiting for this player's input? it depends on the game
+	// at the same time, this interface is specific to the game
+
+NetworkInterface.prototype.vote = function( sender, vote ) {
+	if( this.state === 1 ) {
+		if( sender === this.state_data.prosecution ) {
+			if( this.vote === 1 || this.vote === 2 ) {
+				var previous_vote = this.state_data.votes[ sender ];
+			
+				this.state_data.votes[ sender ] = vote;
+			
+				if( ! previous_vote ) {
+					this.state_data.votes_left = this.state_data.votes_left - 1;
+
+					if( this.state_data.votes_left === 0 ) {
+						this.state = 3;
+						this.state_data = {
+							acknowledgements: {},
+							acknowledgements_left: this.players.length - 1
+						};
+						
+						var out = null;
+>>>>>>> f01b749717a1e3425b9cf62aff4116ed3e2696ef
 					
 					if( this.substate.votes_left === 0 ) {
 						var affirm_word_votes = this.substate.votes.fold( 0, function( total, player, vote ) {
