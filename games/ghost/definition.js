@@ -21,6 +21,8 @@ require( '../../lib/object.js' );
 // on socket error, do something (maybe same as above)
 // make games reconnectable
 // change urls to be more flexible (like auto redirect on trailing slash, etc.)
+// forfeit option in ghost when challenged
+
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
