@@ -65,6 +65,13 @@ window.onload = function( event ) {
 
 	//ws.onclose = function( event ) {}
 	//ws.onerror = function( event ) {}
+	
+	var chat_text_cached_length = 0;
+
+	$('chat_text').onkeydown = function( event ) {
+		if( chat_text_cached_length === 0 ) {
+			var chat_text_length = 
+			
 
 	$('start_button').onclick = function( event ) {
 		ws.send( JSON.stringify({ type: 'start' }) );
