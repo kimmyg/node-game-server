@@ -20,6 +20,7 @@ require( '../../lib/object.js' );
 // on socket disconnect, attempt reconnect
 // on socket error, do something (maybe same as above)
 // make games reconnectable
+// change urls to be more flexible (like auto redirect on trailing slash, etc.)
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
