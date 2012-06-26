@@ -5,64 +5,83 @@ var Map = require( '../../lib/map.js' ).Map;
 
 require( '../../lib/object.js' );
 
+// should not be able to join from another device!
+// fix expiration of token for websockets
+// make web-app-capable
+// make scale unavailable, width=device-width
+// add "so and so is typing..."
+// change interface to look better
+// make enter in the textfield send the message
+// add leave in gathering
+// clean up game end for ghost
+// add shake to go back to game page
+// add feedback for votes?
+// add timeouts for players with voting to kick players
+// on socket disconnect, attempt reconnect
+// on socket error, do something (maybe same as above)
+// make games reconnectable
+
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
 	
 	this.id = id;
 	this.creator = creator;
 	
-	this.order = [];
+	this.name_to_index = {};
+	this.index_to_name = [];
+	
 	this.connections = new Map();
 	this.players = new Map();
+	
+	var self = this;
+	
+	this.socket_onMessage = function( message ) {
+		self.handle( this, message );
+	};
+	
+	this.socket_onClose = function() {
+		self.part( this );
+	};
 }
 
 util.inherits( Gathering, EventEmitter );
 
 Gathering.prototype.join = function( ws, player_name ) {
-	var self = this;
+	ws.on( 'message', this.socket_onMessage );
+	ws.on( 'close', this.socket_onClose );
 
-	ws.on( 'message', function( data ) {
-		self.handle( ws, data );
-	});
-
-	if( this.order.length === 0 ) {
+	if( this.index_to_name.length === 0 ) {
 		ws.send( JSON.stringify({ type: 'creator' }) );
 	}
 
-	ws.send( JSON.stringify({ type: 'players', players: this.order }) );
+	this.name_to_index[ player_name ] = this.index_to_name.length;
+	this.index_to_name.push( player_name );
+
+	ws.send( JSON.stringify({ type: 'players', players: this.index_to_name }) );
+	this.broadcast( JSON.stringify({ type: 'add_player', player_name: player_name }) );
 	
-	this.order.push( player_name );
 	this.connections.set( ws, player_name );
 	this.players.set( player_name, ws );
-		
-	this.broadcast( JSON.stringify({ type: 'add', name: player_name }) );
 }
 
 Gathering.prototype.part = function( ws ) {
-	var player_name = this.connections.get( ws ), index = this.indexForPlayerName( player_name );
+	var player_name = this.connections.delete( ws ), player_index = this.name_to_index[ player_name ];
 	
-	this.order.splice( index, 1 );
-	this.connections.delete( ws );
 	this.players.delete( player_name );
+	
+	delete this.name_to_index[ player_name ];
+	this.index_to_name.splice( player_index, 1 );
+	
+	this.broadcast( JSON.stringify({ type: 'remove_player', player_name: player_name }) );
 		
-	this.broadcast( JSON.stringify({ type: 'remove', name: player_name }) );
-		
-	if( this.order.length === 0 ) {
+	if( this.index_to_name.length === 0 ) {
 		this.emit( 'empty' );
 	}
-	else if( index === 0 ) {
-		this.creator = this.order[0];
+	else if( player_index === 0 ) {
+		this.creator = this.index_to_name[0];
 			
 		this.emit( 'new_creator', this.creator );
 		this.players.get( this.creator ).send( JSON.stringify({ type: 'creator' }) );
-	}
-}
-
-Gathering.prototype.indexForPlayerName = function( player_name ) {
-	for( var i = 0; i < this.order.length; ++i ) {
-		if( this.order[i] === player_name ) {
-			return i;
-		}
 	}
 }
 
@@ -96,7 +115,7 @@ Gathering.prototype.handle = function( ws, message ) {
 }
 
 Gathering.prototype.createGame = function() {
-	return new NetworkInterface( this.id, this.creator, this.order.concat() );
+	return new NetworkInterface( this.id, this.creator, this.index_to_name.concat() );
 }
 
 Gathering.prototype.startGame = function() {
@@ -123,7 +142,7 @@ Ghost.prototype.start = function() {
 	
 	this.emit( 'start' );
 	
-	if( this.players.length > 0 ) { // change this to 1 for actual game!
+	if( this.players.length > 1 ) {
 		this.startRound();
 	}
 	else {
@@ -141,7 +160,7 @@ Ghost.prototype.startRound = function() {
 	this.word = [];
 
 	this.state = 0;
-	this.state_data = {
+	this.substate = {
 		i: 0,
 		last: null,
 		turn: this.players[0]
@@ -156,7 +175,7 @@ Ghost.prototype.endRound = function() {
 	delete this.word;
 	
 	delete this.state;
-	delete this.state_data;
+	delete this.substate;
 	
 	this.emit( 'round-end' );
 }
@@ -164,7 +183,7 @@ Ghost.prototype.endRound = function() {
 Ghost.prototype.nextRound = function() {
 	this.endRound();
 	
-	if( this.players.length > 0 ) { // change for real game
+	if( this.players.length > 1 ) {
 		this.startRound();
 	}
 	else {
@@ -173,20 +192,20 @@ Ghost.prototype.nextRound = function() {
 }
 
 Ghost.prototype.startTurn = function() {
-	this.emit( 'turn-start', this.state_data.turn );
+	this.emit( 'turn-start', this.substate.turn );
 }
 
 Ghost.prototype.endTurn = function() {
-	this.emit( 'turn-end', this.state_data.turn );
+	this.emit( 'turn-end', this.substate.turn );
 }
 
 Ghost.prototype.nextTurn = function() {
 	if( this.state === 0 ) {
 		this.endTurn();
 	
-		this.state_data.i = ( this.state_data.i + 1 ) % this.players.length;
-		this.state_data.last = this.state_data.turn;
-		this.state_data.turn = this.players[ this.state_data.i ];
+		this.substate.i = ( this.substate.i + 1 ) % this.players.length;
+		this.substate.last = this.substate.turn;
+		this.substate.turn = this.players[ this.substate.i ];
 
 		this.startTurn();
 	}
@@ -200,7 +219,7 @@ Ghost.prototype.nextTurn = function() {
 
 Ghost.prototype.msg_add = function( sender, letter ) {
 	if( this.state === 0 ) {
-		if( this.state_data.turn === sender ) {
+		if( this.substate.turn === sender ) {
 			this.word.push( letter );
 
 			this.emit( 'letter-added', sender, letter );
@@ -215,7 +234,7 @@ Ghost.prototype.msg_add = function( sender, letter ) {
 		this.emit( 'fail', sender, 'letters can\'t be added now' );
 	}
 	else if( this.state === 2 ) {
-		if( this.state_data.challenged === sender ) {
+		if( this.substate.challenged === sender ) {
 			this.word.push( letter );
 
 			this.emit( 'letter-added', sender, letter );
@@ -231,8 +250,8 @@ Ghost.prototype.msg_add = function( sender, letter ) {
 
 Ghost.prototype.msg_remove = function( sender ) {
 	if( this.state === 2 ) {
-		if( this.state_data.challenged === sender ) {			
-			if( this.word.length > this.state_data.prefix_length ) {
+		if( this.substate.challenged === sender ) {			
+			if( this.word.length > this.substate.prefix_length ) {
 				this.word.pop();
 
 				this.emit( 'letter-removed', sender );
@@ -255,13 +274,13 @@ Ghost.prototype.msg_remove = function( sender ) {
 
 Ghost.prototype.msg_declare = function( sender ) {
 	if( this.state === 0 ) {
-		if( this.state_data.turn === sender ) {			
+		if( this.substate.turn === sender ) {			
 			if( this.word.length >= 3 ) {
 				this.state = 1;
 
-				this.state_data = {
-					defense: this.state_data.last, 
-					prosecution: this.state_data.turn
+				this.substate = {
+					defense: this.substate.last, 
+					prosecution: this.substate.turn
 				};
 
 				this.emit( 'declare', sender );
@@ -275,12 +294,12 @@ Ghost.prototype.msg_declare = function( sender ) {
 		}
 	}
 	else if( this.state === 2 ) {
-		if( this.word.length > this.state_data.prefix_length ) {
+		if( this.word.length > this.substate.prefix_length ) {
 			this.state = 1;
 
-			this.state_data = {
-				defense: this.state_data.challenger,
-				prosecution: this.state_data.challenged
+			this.substate = {
+				defense: this.substate.challenger,
+				prosecution: this.substate.challenged
 			};
 
 			this.emit( 'declare', sender );
@@ -299,17 +318,17 @@ Ghost.prototype.msg_declare = function( sender ) {
 
 Ghost.prototype.msg_challenge = function( sender ) {
 	if( this.state === 0 ) {
-		if( this.state_data.turn === sender ) {
+		if( this.substate.turn === sender ) {
 			if( this.word.length >= 2 ) {
 				this.state = 2;
 
-				this.state_data = {
-					challenged: this.state_data.last,
-					challenger: this.state_data.turn,
+				this.substate = {
+					challenged: this.substate.last,
+					challenger: this.substate.turn,
 					prefix_length: this.word.length
 				};;
 
-				this.emit( 'challenge', this.state_data.challenger, this.state_data.challenged );
+				this.emit( 'challenge', this.substate.challenger, this.substate.challenged );
 			}
 			else {
 				this.emit( 'fail', sender, 'word too short to challenge' );
@@ -329,12 +348,27 @@ Ghost.prototype.msg_challenge = function( sender ) {
 
 Ghost.prototype.rule = function( ruling ) {
 	if( this.state === 1 ) {
-		if( ruling === 1 || ruling === 2 ) {
+		if( ruling === 1 || ruling === 2 || ruling === 3 ) {
 			if( ruling === 1 ) {
-				// get rid of defendant
+				for( var i = 0; i < this.players.length; ++i ) {
+					if( this.players[i] === this.substate.defense ) {
+						this.players.splice( i, 1 );
+					}
+				}
+				
+				this.emit( 'out', this.substate.defense );
+			}
+			else if( ruling === 2 ) {
+				for( var i = 0; i < this.players.length; ++i ) {
+					if( this.players[i] === this.substate.prosecution ) {
+						this.players.splice( i, 1 );
+					}
+				}
+				
+				this.emit( 'out', this.substate.prosecution );
 			}
 			else {
-				// get rid of prosecution
+				this.emit( 'tie' );
 			}
 			
 			this.nextRound();
@@ -350,7 +384,7 @@ Ghost.prototype.rule = function( ruling ) {
 
 
 Ghost.prototype.getState = function() {
-	return { state: this.state, state_data: this.state_data, word: this.word };
+	return { state: this.state, substate: this.substate, word: this.word };
 }
 
 function TerminalInterface( n ) {
@@ -402,23 +436,27 @@ TerminalInterface.prototype.send = function( message ) {
 
 exports.Game = TerminalInterface;
 
-function NetworkInterface( id, creator, order ) {
+
+// if options && options.randomizeOrder then players = players.shuffle
+
+function NetworkInterface( id, creator, index_to_name ) {
+	EventEmitter.call( this );
+
 	this.id = id;
 	this.creator = creator;
-	this.index_to_name = order;
 	
+	this.index_to_name = index_to_name;
 	this.name_to_index = {};
+	
 	for( var i = 0; i < this.index_to_name.length; ++i ) {
 		this.name_to_index[ this.index_to_name[i] ] = i;
 	}
-
-	// if options && options.randomizeOrder then players = players.shuffle
 
 	this.connections = new Map();
 	this.players = new Map();
 
 	this.state = 3; // waiting on everyone, not using state enums below just yet
-	this.state_data = {
+	this.substate = {
 		connections: []
 	};
 
@@ -440,7 +478,8 @@ function NetworkInterface( id, creator, order ) {
 		self.players.get( self.index_to_name[ player_index ] ).send( JSON.stringify({ type: 'fail', message: message }) );
 	};
 }
-	
+
+util.inherits( NetworkInterface, EventEmitter );
 
 NetworkInterface.prototype.gather = function() { // so it times out
 	var self = this;
@@ -471,16 +510,18 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 	ws.on( 'close', this.onClose );
 
 	if( this.state === 3 ) { // waiting to start the game
-		this.broadcast( JSON.stringify({ type: 'join', player: player_name }) );
+		var player_index = this.name_to_index[ player_name ];
+	
+		this.broadcast( JSON.stringify({ type: 'join', player_index: player_index }) );
 
 		this.connections.set( ws, player_name );
 		this.players.set( player_name, ws );
 
-		this.state_data.connections.push( player_name );
+		this.substate.connections.push( player_index );
 
-		ws.send( JSON.stringify({ type: 'init', players: this.index_to_name, present: this.state_data.connections }) );
+		ws.send( JSON.stringify({ type: 'init', players: this.index_to_name, present: this.substate.connections }) );
 
-		if( this.state_data.connections.length === this.index_to_name.length ) {
+		if( this.substate.connections.length === this.index_to_name.length ) {
 			this.n = this.index_to_name.length;
 		
 			this.game = new Ghost( this.n );
@@ -507,7 +548,7 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			});
 
 			this.game.on( 'end', function() {
-				self.broadcast( JSON.stringify({ type: 'end' }) );
+				self.emit( 'end' );
 				// client should interpret this as a redirect or something
 				// this may be delayed until client acknowledgement
 			});
@@ -567,12 +608,12 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			
 			this.game.on( 'declare', function( declarer_index ) {
 				self.state = 1;
-				self.state_data = {
+				self.substate = {
 					votes: {},
 					votes_left: this.n - 1
 				};
 				
-				self.state_data.votes[ self.index_to_name[ declarer_index ] ] = 1; 
+				self.substate.votes[ self.index_to_name[ declarer_index ] ] = 1; 
 				
 				var message = {
 					type: 'declare',
@@ -594,12 +635,20 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 					}
 				});
 			});
+			
+			this.game.on( 'out', function( player_index ) {
+				self.broadcast( JSON.stringify({ type: 'out', out: player_index }) );
+			});
+			
+			this.game.on( 'tie', function() {
+				self.broadcast( JSON.stringify({ type: 'tie' }) );
+			});
 
 			this.game.start();
 		}
 	}
 	else { // suppose it is known the player can join? this occurs when someone drops out and joins
-		ws.send( JSON.stringify({ type: 'init', players: this.index_to_name, present: this.state_data.connections, state: this.game.getState() }) );
+		ws.send( JSON.stringify({ type: 'init', players: this.index_to_name, present: this.substate.connections, state: this.game.getState() }) );
 	}
 }
 
@@ -608,86 +657,40 @@ NetworkInterface.prototype.part = function( ws ) {
 
 	this.players.delete( player_name );
 
-	this.broadcast( JSON.stringify({ type: 'left', player: this.name_to_index[ player_name ] }) );
+	this.broadcast( JSON.stringify({ type: 'left', player_index: this.name_to_index[ player_name ] }) );
 }
 
 NetworkInterface.prototype.handle = function( ws, message ) {
+	var player_name = this.connections.get( ws ), player_index = this.name_to_index[ player_name ];
+	
 	var args = message.split( '|' );
 	
 	message = args[0];
 	
+	args[0] = player_index;
+	
 	if( this.game[ 'msg_' + message ] ) {
-		args[0] = this.name_to_index[ this.connections.get( ws ) ];
 		this.game[ 'msg_' + message ].apply( this.game, args );
 	}
 	else if( message === 'vote' ) {
-		var player_name = this.connections.get( ws );
-	
-		if( state === 1 ) {
-			var vote = args[1];
-			
-			if( vote === 1 || vote === 2 ) {
-				if( this.state_data.votes[ player_name ] ) {
-				
-				}
-				else {
-				
-				}
+		if( this.state === 1 ) {
+			if( player_index === this.substate.declarer ) {
+				this.onFail( player_index, 'you can\'t vote!' );
 			}
 			else {
-				this.onFail( this.name_to_index[ player_name ], 'not a valid vote' );
-		}
-		else {
-			this.onFail( this.name_to_index[ player_name ], 'cannot vote in this state' );
-		}
-	}
-	else {
-		// send unrecognized message
-	}
-	// map from ws to player index
-	// send message to game instance
-}
-
-/*this.game.on( 'turn', function( index ) {
-	var player_name = this.order[ index ];
-
-	if( this.players( player_name ) ) {
-		// handle player
-	}
-	else {
-		// broadcast that the player is not connected and will be given 30 seconds before a vote
-	}
-}*/
-
-//ws, player_name
-
-//var self = this;
-
-//ws.on( 'close', function() {
-	// how do we determine whether we are waiting for this player's input? it depends on the game
-	// at the same time, this interface is specific to the game
-
-NetworkInterface.prototype.vote = function( sender, vote ) {
-	if( this.state === 1 ) {
-		if( sender === this.state_data.prosecution ) {
-			if( this.vote === 1 || this.vote === 2 ) {
-				var previous_vote = this.state_data.votes[ sender ];
-			
-				this.state_data.votes[ sender ] = vote;
-			
-				if( ! previous_vote ) {
-					this.state_data.votes_left = this.state_data.votes_left - 1;
-
-					if( this.state_data.votes_left === 0 ) {
-						this.state = 3;
-						this.state_data = {
-							acknowledgements: {},
-							acknowledgements_left: this.players.length - 1
-						};
-						
-						var out = null;
+				var vote = parseInt( args[1] );
+				
+				if( vote === 1 || vote === 2 ) {
+					if( this.substate.votes[ player_name ] ) {
+						this.substate.votes[ player_name ] = vote;
+					}
+					else {
+						this.substate.votes[ player_name ] = vote;
+						this.substate.votes_left = this.substate.votes_left - 1;
+					}
 					
-						var votes_is_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
+					if( this.substate.votes_left === 0 ) {
+						var affirm_word_votes = this.substate.votes.fold( 0, function( total, player, vote ) {
 							if( vote === 1 ) {
 								return total + 1;
 							}
@@ -696,7 +699,7 @@ NetworkInterface.prototype.vote = function( sender, vote ) {
 							}
 						});
 
-						var votes_is_not_word = this.state_data.votes.fold( 0, function( total, player, vote ) {
+						var negate_word_votes = this.substate.votes.fold( 0, function( total, player, vote ) {
 							if( vote === 2 ) {
 								return total + 1;
 							}
@@ -704,87 +707,32 @@ NetworkInterface.prototype.vote = function( sender, vote ) {
 								return total;
 							}
 						});
-
-						if( this.state_data.advantage === this.state_data.prosecution ) {
-							if( votes_is_not_word > votes_is_word ) {
-								out = this.state_data.prosecution;
-							}
-							else {
-								out = this.state_data.defense;
-							}
+						
+						if( affirm_word_votes > negate_word_votes ) {
+							this.game.rule( 1 );
 						}
-						else if( this.state_data.advantage === this.state_data.defense ) {
-							if( votes_is_word > votes_is_not_word ) {
-								out = this.state_data.defense;
-							}
-							else {
-								out = this.state_data.prosecution;
-							}
+						else if( affirm_word_votes < negate_word_votes ) {
+							this.game.rule( 2 );
 						}
 						else {
-							this.emit( 'critical', 'vote: unknown advantage: ' + this.state_data.advantage );
+							this.game.rule( 3 );
 						}
-						
-						if( this.state_data.advantage === this.state_data.prosecution || this.state_data.advantage === this.state_data.defense ) {
-							for( var i = 0; i < this.players.length; ++i ) {
-								if( this.players[i] === out ) {
-									this.players.splice( i, 1 );
-								}
-							}
-									
-							this.emit( 'out', out );
-						}
-					}
-					else {
-						this.emit( 'vote', sender );
 					}
 				}
 				else {
-					this.state_data.votes[ sender ] = vote;
+					this.onFail( player_index, 'not a valid vote' );
 				}
-			}
-			else {
-				this.emit( 'fail', sender, 'invalid vote' );
 			}
 		}
 		else {
-			this.emit( 'fail', sender, 'you can\'t vote' );
+			this.onFail( player_index, 'cannot vote in this state' );
 		}
 	}
-	else if( this.state < 4 ) {
-		this.emit( 'fail', sender, 'can\'t vote in this state' );
-	}
 	else {
-		this.emit( 'critical', 'invalid state: ' + this.state );
+		this.onFail( player_index, 'unrecognized message: ' + message );
 	}
 }
 
-function Game() {}
-
-
-
-Game.prototype.canContinueWithoutPlayer = function( player ) {
-
+NetworkInterface.prototype.endGame = function() {
+	this.broadcast( JSON.stringify({ type: 'end' }) );
 }
-
-Game.prototype.removePlayer = function( player ) {
-	if( this.canContinueWithoutPlayer( player ) ) {
-		// remove the player, make changes, etc.
-	}
-	else {
-		// kick everyone off
-	}
-}
-
-Game.prototype.nextTurn = function() {
-	// notify players that it is the next person's turn
-	// set a timeout to drop the player
-}
-
-// the game may be able to be suspended (the game will not be removed from the 
-// system if all the players leave.)
-// when a player reconnects to the game, they receive the game state
-
-
-exports.Game = Game;
-

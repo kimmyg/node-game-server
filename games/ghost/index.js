@@ -136,6 +136,12 @@ exports.join = function( id, ws, player_name ) {
 		gathering.on( 'start', function( id ) {
 			var game = gathering.createGame();
 			
+			game.on( 'end', function() {
+				delete games[ id ];
+			
+				this.endGame();
+			});
+			
 			delete gatherings[ id ];
 			games[ id ] = game;
 			
@@ -143,27 +149,13 @@ exports.join = function( id, ws, player_name ) {
 			
 			emitter.emit( 'remove', id );
 			emitter.emit( 'add_game', game.id, game.creator );
-		
-			// do the manager stuff necessary so that when clients reconnect,
-			// they will connect to the game
-			// send a gathering broadcast.
 		});
 	}
 	else if( gatherings.hasOwnProperty( id ) ) {
-		var gathering = gatherings[ id ];
-	
-		gathering.join( ws, player_name );
-		ws.on( 'close', function() {
-			gathering.part( ws );
-		});
+		gatherings[ id ].join( ws, player_name );
 	}
 	else if( games.hasOwnProperty( id ) ) {
-		var game = games[ id ];
-	
-		game.join( ws, player_name );
-		ws.on( 'close', function() {
-			game.part( ws );
-		});
+		games[ id ].join( ws, player_name );
 	}
 	else {
 		console.log( 'whoa, rogue id: ' + id );

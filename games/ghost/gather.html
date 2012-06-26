@@ -2,6 +2,8 @@
 <html>
 
 <head>
+<link rel="stylesheet" href="style.css" type="text/css"/>
+<meta name="viewport" content="width=device-width,user-scalable=no"/>
 <script type="text/javascript">
 function $( id ) {
 	return document.getElementById( id );
@@ -28,16 +30,16 @@ window.onload = function( event ) {
 				$('players').appendChild( li );
 			}
 		}
-		else if( message.type === 'add' ) {
+		else if( message.type === 'add_player' ) {
 			var li = document.createElement( 'li' );
 				
-			li.id = message.name;
-			li.innerText = message.name;
+			li.id = message.player_name;
+			li.innerText = message.player_name;
 			
 			$('players').appendChild( li );
 		}
-		else if( message.type === 'remove' ) {
-			$('players').removeChild( $( message.name ) );
+		else if( message.type === 'remove_player' ) {
+			$('players').removeChild( $( message.player_name ) );
 		}
 		else if( message.type === 'chat' ) {
 			var p = document.createElement( 'p' );

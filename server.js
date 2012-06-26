@@ -25,6 +25,18 @@ hs.on( 'request', function( request, response ) {
 				if( components[0] === '' ) {
 					main.handle.call( this, info, response );
 				}
+				else if( components[0] === 'style.css' ) {
+					fs.readFile( 'style.css', 'utf8', function( error, data ) {
+						if( error ) {
+							response.writeHead( 500 );
+							response.end();
+						}
+						else {
+							response.writeHead( 200, { 'Content-Type': 'text/css' } );
+							response.end( data );
+						}
+					});
+				}
 				else {
 					fs.stat( 'games/' + components[0], function( error, stats ) {
 						if( error ) {

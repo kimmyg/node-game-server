@@ -1,0 +1,40 @@
+body, div {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	background-color: #ddd;
+	color: gray;
+	font-family: sans-serif;
+}
+
+a {
+	text-decoration: none;
+}
+
+div.header {
+	border: solid gray 1px;
+	border-radius: 4px;
+	margin: 4px;
+	padding: 4px;
+}
+
+span.title {
+}
+
+a.button {
+	display: block;
+	background-color: #333;
+	color: #ddd;
+	border: solid gray 1px;
+	border-radius: 4px;
+	margin: 4px;
+	padding: 4px;
+}
+
+ul {
+	margin: 4px;
+	padding: 4px;
+	list-style-type: none;
+}

@@ -163,7 +163,7 @@ window.onload = function( event ) {
 			}
 
 			for( var i = 0; i < message.present.length; ++i ) {
-				$( message.present[i] ).classList.remove( 'absent' );
+				$( players[ message.present[i] ] ).classList.remove( 'absent' );
 			}
 
 			if( message.state ) {
@@ -173,10 +173,10 @@ window.onload = function( event ) {
 		}
 		// no longer waiting for player X
 		else if( message.type === 'join' ) {
-			$( message.player ).classList.remove( 'absent' );
+			$( players[ message.player_index ] ).classList.remove( 'absent' );
 		}
 		else if( message.type === 'left' ) {
-			$( message.player ).classList.add( 'absent' );
+			$( players[ message.player_index ] ).classList.add( 'absent' );
 		}
 		// game starts
 		else if( message.type === 'start' ) {
@@ -196,6 +196,8 @@ window.onload = function( event ) {
 			state = 0;
 			state_data = false;
 			
+			$('word').innerHTML = '&nbsp;';
+			
 			$('backspace-button').classList.add( 'hidden' );
 			$('declare-button').classList.add( 'hidden' );
 			$('challenge-button').classList.add( 'hidden' );
@@ -208,6 +210,10 @@ window.onload = function( event ) {
 			
 			state = null;
 			state_data = null;
+			
+			$('word').innerText = '';
+			
+			$('declare-interface').classList.add( 'hidden' );
 		}
 		// turn of player X
 		else if( message.type === 'turn' ) {
@@ -254,15 +260,18 @@ window.onload = function( event ) {
 			$('main').className = 'player_' + message.challenged;
 			
 			if( message.is_challenged ) {
+				$('status').innerText = players[ message.challenger ] + ' has challenged you!';
+				
 				$('challenge-button').classList.add( 'hidden' );
 				$('backspace-button').classList.remove( 'hidden' );
 				$('declare-button').classList.remove( 'hidden' );
-
-				$('status').innerText = players[ message.challenger ] + ' has challenged you!';}
-			else {
-				$('turn-interface').classList.add( 'hidden' );
 				
+				$('turn-interface').classList.remove( 'hidden' );
+			}
+			else {
 				$('status').innerText = players[ message.challenger ] + ' has challenged ' + players[ message.challenged ] + '!';
+			
+				$('turn-interface').classList.add( 'hidden' );
 			}
 		}
 		// challenge letter added
@@ -271,12 +280,23 @@ window.onload = function( event ) {
 		else if( message.type === 'declare' ) {
 			$('turn-interface').classList.add( 'hidden' );
 			
-			$('status').innerText = players[ message.declarer ] + ' declares ' + word.join( '' ) + ' to be a word';
+			if( message.is_declarer ) {		
+				$('status').innerText = 'you have declared ' + word.join( '' ) + ' a word';
+			}
+			else {
+				$('status').innerText = players[ message.declarer ] + ' has declared ' + word.join( '' ) + ' a word';
 		
-			$('affirmed-declared-word').innerText = word.join( '' );
-			$('negated-declared-word').innerText = word.join( '' );
+				$('affirm-declared-word').innerText = word.join( '' );
+				$('negate-declared-word').innerText = word.join( '' );
 			
-			$('declare-interface').classList.remove( 'hidden' );
+				$('declare-interface').classList.remove( 'hidden' );
+			}
+		}
+		else if( message.type === 'out' ) {
+			alert( players[ message.out ] + ' is out!' );
+		}
+		else if( message.type === 'tie' ) {
+			alert( 'It was a tie vote. Nobody is eliminated!' );
 		}
 		// waiting for players X_1, ... to vote
 		// no longer waiting for player X to vote
@@ -300,7 +320,12 @@ window.onload = function( event ) {
 
 	};
 
-	//ws.onclose = function( event ) {}
+	ws.onclose = function( event ) {
+		$('main').className = '';
+		$('status').innerText = 'lost connection to server';
+		$('interface').classList.add( 'hidden' );
+	};
+	
 	//ws.onerror = function( event ) {}
 	
 	var add_letter = function( event ) {
@@ -316,18 +341,22 @@ window.onload = function( event ) {
 	};
 	
 	$('challenge-button').onclick = function( event ) {
-		ws.send( 'challenge' );
+		if( confirm( 'Are you sure you want to challenge ' + word.join( '' ) + '?', 'Challenge', 'Cancel' ) ) {
+			ws.send( 'challenge' );
+		}
 	};
 	
 	$('declare-button').onclick = function( event ) {
-		ws.send( 'declare' );
+		if( confirm( 'Are you sure you want to declare ' + word.join( '' ) + ' a word?', 'Declare', 'Cancel' ) ) {
+			ws.send( 'declare' );
+		}
 	};
 	
-	$('affirm-declared-word').onclick = function( event ) {
+	$('affirm-declared-button').onclick = function( event ) {
 		ws.send( 'vote|1' );
 	};
 	
-	$('negate-declared-word').onclick = function( event ) {
+	$('negate-declared-button').onclick = function( event ) {
 		ws.send( 'vote|2' );
 	};
 }
@@ -339,7 +368,7 @@ window.onload = function( event ) {
 	<div id="status"></div>
 	<div id="interface">
 		<div id="bubble">
-			<span id="word">&nbsp;</span>
+			<span id="word"></span>
 		</div>
 		<div id="turn-interface">
 			<div id="letters">
@@ -383,8 +412,8 @@ window.onload = function( event ) {
 			</div>
 		</div>
 		<div id="declare-interface">
-			<a class="gray button"><span id="affirm-declared-word"></span> is a word</a>
-			<a class="gray button"><span id="negate-declared-word"></span> is <em>not</em> a word</a>
+			<a class="gray button" id="affirm-declared-button"><span id="affirm-declared-word"></span> is a word</a>
+			<a class="gray button" id="negate-declared-button"><span id="negate-declared-word"></span> is <em>not</em> a word</a>
 		</div>
 	</div>
 	
