@@ -20,32 +20,69 @@ hs.on( 'request', function( request, response ) {
 			info = { 'expiration': info.expiration, 'name': info.name, 'token': info.token };
 		
 			if( login.tokenIsValid( info.expiration, info.name, info.token ) ) {
-				var components = url.parse( request.url ).pathname.split( '/' ).slice( 1 );
-				
-				if( components[0] === '' ) {
-					main.handle.call( this, info, response );
-				}
-				else if( components[0] === 'style.css' ) {
-					fs.readFile( 'style.css', 'utf8', function( error, data ) {
-						if( error ) {
-							response.writeHead( 500 );
-							response.end();
+				var pathname = url.parse( request.url ).pathname;
+
+/*
+
+desired behavior:
+'<anything>' redirects to '/<anything>'
+'/<game>' redirects to '/<game>/'
+'/<file_path>' serves
+
+*/
+
+				if( pathname.substring( 0, 1 ) === '/' ) {
+					var components = pathname.split( '/' ).slice( 1 );
+
+					if( components.length === 1 ) {
+						if( components[0] === '' ) {
+							main.handle.call( this, response, info );
 						}
 						else {
-							response.writeHead( 200, { 'Content-Type': 'text/css' } );
-							response.end( data );
+							fs.stat( components[0], function( error, stats ) {
+								if( error ) {
+									fs.stat( 'games/' + components[0], function( error, stats ) {
+										if( error ) {
+											response.writeHead( 404 );
+											response.end();
+										}
+										else {
+											redirect( response, '/' + components.join( '/' ) + '/' );
+										}
+									});
+								}
+								else {
+									fs.readFile( components[0], 'utf8', function( error, data ) {
+										if( error ) {
+											response.writeHead( 500 );
+											response.end();
+										}
+										else {
+											response.writeHead( 200, { 'Content-Type': contentTypeForPath( components[0] ) } );
+											response.end( data );
+										}
+									});
+								}
+							});
+										
 						}
-					});
+					}
+					else {
+						var self = this;
+
+						fs.stat( 'games/' + components[0], function( error, stats ) {
+							if( error ) {
+								response.writeHead( 404 );
+								response.end();	
+							}
+							else {
+								game.handle.call( self, response, info, components );
+							}
+						});
+					}
 				}
 				else {
-					fs.stat( 'games/' + components[0], function( error, stats ) {
-						if( error ) {
-							redirect( response, '/' );
-						}
-						else {
-							game.handle.call( this, info, components, response );
-						}
-					});
+					redirect( response, '/' + pathname );
 				}
 			}
 			else {

@@ -1,6 +1,6 @@
 var fs = require( 'fs' );
 
-exports.handle = function( user_info, response ) {
+exports.handle = function( response, user_info ) {
 	fs.readdir( 'games', function( error, entries ) {
 		if( error ) {
 		

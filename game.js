@@ -4,7 +4,7 @@ var redirect = require( './redirect.js' ).redirect;
 
 var fs = require('fs');
 
-exports.handle = function( user_info, parameters, response ) {
+exports.handle = function( response, user_info, parameters ) {
 	var game_module = require( './games/' + parameters[0] );
 	
 	if( parameters.length > 1 ) {

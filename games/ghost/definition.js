@@ -22,7 +22,7 @@ require( '../../lib/object.js' );
 // make games reconnectable
 // change urls to be more flexible (like auto redirect on trailing slash, etc.)
 // forfeit option in ghost when challenged
-
+// add removePlayer from game (logic is special when it's that players turn)
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
@@ -746,7 +746,7 @@ NetworkInterface.prototype.vote = function( sender, vote ) {
 						};
 						
 						var out = null;
->>>>>>> f01b749717a1e3425b9cf62aff4116ed3e2696ef
+					}
 					
 					if( this.substate.votes_left === 0 ) {
 						var affirm_word_votes = this.substate.votes.fold( 0, function( total, player, vote ) {
