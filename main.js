@@ -7,7 +7,7 @@ exports.handle = function( response, user_info ) {
 		}
 		else {
 			entries.forEach( function( entry ) {
-				response.write( '<a href="/' + entry + '">' + entry + '</a><br/>' );
+				response.write( '<a href="/' + entry + '/">' + entry + '</a><br/>' );
 			});
 		}
 

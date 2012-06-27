@@ -1,9 +1,9 @@
-var crypto = require( 'crypto' );
-var fs = require( 'fs' );
-var qs = require( 'querystring' );
-var url = require( 'url' );
+var crypto = require('crypto');
+var fs = require('fs');
+var qs = require('querystring');
+var url = require('url');
 
-var accounts = JSON.parse( fs.readFileSync( 'accounts', 'utf8' ) );
+var accounts = JSON.parse( fs.readFileSync( 'db/accounts', 'utf8' ) );
 
 var main = require( './main.js' );
 

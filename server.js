@@ -3,9 +3,9 @@ var http = require('http');
 var ws = require('ws');
 var url = require('url');
 
-var redirect = require( './redirect.js' ).redirect;
+var redirect = require('redirect').redirect;
+var cookie = require('cookie');
 
-var cookie = require( './cookie.js' );
 var login = require( './login.js' );
 var main = require( './main.js' );
 var game = require( './game.js' );

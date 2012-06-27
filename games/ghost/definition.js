@@ -23,6 +23,7 @@ require( '../../lib/object.js' );
 // change urls to be more flexible (like auto redirect on trailing slash, etc.)
 // forfeit option in ghost when challenged
 // add removePlayer from game (logic is special when it's that players turn)
+// fixed isPlayer in network interface
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
@@ -505,8 +506,13 @@ NetworkInterface.prototype.broadcast = function( message ) {
 }
 
 NetworkInterface.prototype.isPlayer = function( player_name ) {
-	return true;
+	return this.name_to_index.hasOwnProperty( player_name );
 }
+
+NetworkInterface.prototype.endGame = function() {
+	this.broadcast( JSON.stringify({ type: 'end' }) );
+}
+
 
 NetworkInterface.prototype.join = function( ws, player_name ) {
 	ws.on( 'message', this.onMessage );
@@ -708,25 +714,7 @@ NetworkInterface.prototype.handle = function( ws, message ) {
 	// send message to game instance
 }
 
-/*this.game.on( 'turn', function( index ) {
-	var player_name = this.order[ index ];
-
-	if( this.players( player_name ) ) {
-		// handle player
-	}
-	else {
-		// broadcast that the player is not connected and will be given 30 seconds before a vote
-	}
-}*/
-
-//ws, player_name
-
-//var self = this;
-
-//ws.on( 'close', function() {
-	// how do we determine whether we are waiting for this player's input? it depends on the game
-	// at the same time, this interface is specific to the game
-
+/*
 NetworkInterface.prototype.vote = function( sender, vote ) {
 	if( this.state === 1 ) {
 		if( sender === this.state_data.prosecution ) {
@@ -791,7 +779,4 @@ NetworkInterface.prototype.vote = function( sender, vote ) {
 		this.onFail( player_index, 'unrecognized message: ' + message );
 	}
 }
-
-NetworkInterface.prototype.endGame = function() {
-	this.broadcast( JSON.stringify({ type: 'end' }) );
-}
+*/
