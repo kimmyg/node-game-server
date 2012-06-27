@@ -53,9 +53,9 @@ manager.playerCanJoinWithId( 'test', 'aabbccdd' )
 // list of joinable games (joinable will be refined)
 // list of gatherings (should be joinable)
 
-require( '../../lib/object.js' );
-
 var EventEmitter = require('events').EventEmitter;
+
+require('object');
 
 var game = require( './definition.js' );
 

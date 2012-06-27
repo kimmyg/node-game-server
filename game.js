@@ -3,30 +3,37 @@ var util = require('util');
 
 var redirect = require('redirect').redirect;
 
-exports.handle = function( response, user_info, parameters ) {
+exports.create = function( response, user_info, game ) {
+	require( './games/' + game ).createGathering( user_info.name )
+
+	var id = game_module
+
+exports.handle = function( response, user_info, parameters ) { // parameters contains [<game>] or [<game>,<possible-id>]
 	var game_module = require( './games/' + parameters[0] );
 	
-	if( parameters.length > 2 ) {
-		redirect( response, '/' + parameters[0] + '/' );
+	if( parameters.length === 1 ) {
+		// game.html should be parameterized somehow
+
+		fs.readFile( 'game.html', 'utf8', function( error, data ) {
+			if( error ) {
+				redirect( response, '/', 'could not load game.html' );
+			}
+			else {
+				response.writeHead( 200, { 'Content-Type': 'text/html' } );
+				response.end( data );
+			}
+		});
 	}
 	else {
-		if( parameters[1] === '' ) {
-			// game.html should be parameterized somehow
-		
-			fs.readFile( 'game.html', 'utf8', function( error, data ) {
-				if( error ) {
-					redirect( response, '/', 'could not load game.html' );
-				}
-				else {
-					response.writeHead( 200, { 'Content-Type': 'text/html' } );
-					response.end( data );
-				}
-			});
-		}
-		else if( parameters[1] === 'new' ) {
+		if( parameters[1] === 'new' ) {
 			var id = game_module.createGathering( user_info.name );
 			redirect( response, '/' + parameters[0] + '/' + id + '/' );
 		}
+		else if( parameters[1] === '
+		}
+	}
+
+	else {
 		else {
 			var resource_path = 'games/' + parameters[0] + 'resources/' + parameters[1];
 

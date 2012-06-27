@@ -1,9 +1,9 @@
 var util = require('util');
 
 var EventEmitter = require('events').EventEmitter;
-var Map = require( '../../lib/map.js' ).Map;
 
-require( '../../lib/object.js' );
+var Map = require('map').Map;
+require('object');
 
 // should not be able to join from another device!
 // fix expiration of token for websockets

@@ -25,8 +25,31 @@ var hashPassword = function( password ) {
 	return hash.digest( 'hex' );
 }
 
-exports.tokenIsValid = function( expiration, name, token ) { // they may be able to log in but not connect, solve that!
+var tokenIsValid = function( expiration, name, token ) { // they may be able to log in but not connect, solve that!
 	return ( ( token === createToken( expiration, name ) ) && ( Date.now() < parseInt( expiration ) ) );
+}
+
+exports.check = function( request, onSuccess, onFail ) {
+        if( request.headers.cookie ) {
+                var info = cookie.parse( request.headers.cookie );
+
+                if( info.expiration && info.name && info.token ) {
+                        info = { 'expiration': info.expiration, 'name': info.name, 'token': info.token };
+
+                        if( tokenIsValid( info.expiration, info.name, info.token ) ) {
+                                onSuccess( info );
+                        }
+                        else {
+                                onFail( 'invalid token' );
+                        }
+                }
+                else {
+                        onFail( 'incomplete information' );
+                }
+        }
+        else {
+                onFail( 'missing cookie' );
+        }
 }
 
 exports.handle = function( request, response ) {
