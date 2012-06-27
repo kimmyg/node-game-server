@@ -4,9 +4,8 @@ var util = require('util');
 var redirect = require('redirect').redirect;
 
 exports.create = function( response, user_info, game ) {
-	require( './games/' + game ).createGathering( user_info.name )
-
-	var id = game_module
+	require( './games/' + game ).createGathering( user_info.name );
+}
 
 exports.handle = function( response, user_info, parameters ) { // parameters contains [<game>] or [<game>,<possible-id>]
 	var game_module = require( './games/' + parameters[0] );
@@ -29,7 +28,7 @@ exports.handle = function( response, user_info, parameters ) { // parameters con
 			var id = game_module.createGathering( user_info.name );
 			redirect( response, '/' + parameters[0] + '/' + id + '/' );
 		}
-		else if( parameters[1] === '
+		else if( parameters[1] === '' ) {
 		}
 	}
 
