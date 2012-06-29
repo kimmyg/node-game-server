@@ -107,6 +107,19 @@ wss.on( 'connection', function( ws ) {
 	});
 });
 
-hs.listen( 8000, function() {
-	console.log( 'Listening on 127.0.0.1:8000' );
-});
+if( process.argv.length < 3 ) {
+	console.log( 'usage: ' + process.argv.join( ' ' ) + ' <port>' );
+}
+else {
+	var port = parseInt( process.argv[2] );
+
+	if( port && port >= 0 && port < 65536 ) {
+		hs.listen( port, function() {
+			console.log( 'Listening on 127.0.0.1:' + port );
+		});
+	}
+	else {
+		console.log( process.argv[2] + ' is not a valid port' );
+	}
+}
+

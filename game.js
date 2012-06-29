@@ -32,7 +32,7 @@ exports.handle = function( response, user_info, parameters ) { // parameters con
 		}
 	}
 
-	else {
+/*	else {
 		else {
 			var resource_path = 'games/' + parameters[0] + 'resources/' + parameters[1];
 
@@ -73,7 +73,7 @@ exports.handle = function( response, user_info, parameters ) { // parameters con
 				}
 			});
 		}
-	}
+	}*/
 }
 
 exports.handleWS = function( user_info, parameters, ws ) {
