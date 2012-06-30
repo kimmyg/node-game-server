@@ -1,11 +1,11 @@
+var cookie = require('cookie');
 var crypto = require('crypto');
 var fs = require('fs');
 var qs = require('querystring');
+var redirect = require('redirect').redirect;
 var url = require('url');
 
 var accounts = JSON.parse( fs.readFileSync( 'db/accounts', 'utf8' ) );
-
-var main = require( './main.js' );
 
 var createToken = function( expiration, name ) {
 	var hash = crypto.createHash( 'sha1' );
@@ -29,30 +29,7 @@ var tokenIsValid = function( expiration, name, token ) { // they may be able to 
 	return ( ( token === createToken( expiration, name ) ) && ( Date.now() < parseInt( expiration ) ) );
 }
 
-exports.check = function( request, onSuccess, onFail ) {
-        if( request.headers.cookie ) {
-                var info = cookie.parse( request.headers.cookie );
-
-                if( info.expiration && info.name && info.token ) {
-                        info = { 'expiration': info.expiration, 'name': info.name, 'token': info.token };
-
-                        if( tokenIsValid( info.expiration, info.name, info.token ) ) {
-                                onSuccess( info );
-                        }
-                        else {
-                                onFail( 'invalid token' );
-                        }
-                }
-                else {
-                        onFail( 'incomplete information' );
-                }
-        }
-        else {
-                onFail( 'missing cookie' );
-        }
-}
-
-exports.handle = function( request, response ) {
+var onNoCredentials = function( request, response ) {
 	if( request.method === 'POST' ) {
 		var body = '';
 
@@ -97,5 +74,58 @@ exports.handle = function( request, response ) {
 		response.write( '<input type="submit" value="Log in"/><br/>' );
 		response.write( '</form>' );
 		response.end();
+	}
+}
+
+exports.handle = function( request, response, onSuccess, onFail ) {
+	if( request.headers.cookie ) {
+		var info = cookie.parse( request.headers.cookie );
+
+		if( info.expiration && info.name && info.token ) {
+			info = { 'expiration': info.expiration, 'name': info.name, 'token': info.token };
+
+			if( tokenIsValid( info.expiration, info.name, info.token ) ) {
+				var pathname = url.parse( request.url ).pathname;
+				
+				if( pathname === '/login' ) {
+					redirect( response, '/' );
+				}
+				else {
+					onSuccess( info );
+				}
+			}
+			else {
+				onNoCredentials( request, response ); // invalid token
+			}
+		}
+		else {
+			onNoCredentials( request, response ); // incomplete information
+		}
+	}
+	else {
+		onNoCredentials( request, response ); // missing cookie
+	}
+}
+
+exports.check = function( request, onSuccess, onFail ) {
+	if( request.headers.cookie ) {
+		var info = cookie.parse( request.headers.cookie );
+
+		if( info.expiration && info.name && info.token ) {
+			info = { 'expiration': info.expiration, 'name': info.name, 'token': info.token };
+
+			if( tokenIsValid( info.expiration, info.name, info.token ) ) {
+				onSuccess( info );
+			}
+			else {
+				onFail( 'invalid token' );
+			}
+		}
+		else {
+			onFail( 'incomplete information' );
+		}
+	}
+	else {
+		onFail( 'missing cookie' );
 	}
 }

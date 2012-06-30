@@ -70,13 +70,16 @@ window.onload = function( event ) {
 
 	$('chat_text').onkeydown = function( event ) {
 		if( chat_text_cached_length === 0 ) {
-			var chat_text_length = 
+			var chat_text_length = event.target.value.length;
+		}
+	};
 			
 
 	$('start_button').onclick = function( event ) {
 		ws.send( JSON.stringify({ type: 'start' }) );
 	};
 
+	// set this button to disable when there's no content, but keep the check there
 	$('chat_button').onclick = function( event ) {
 		if( $('chat_text').value ) {
 			ws.send( JSON.stringify({ type: 'chat', message: $('chat_text').value }) );

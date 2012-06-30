@@ -1,19 +1,13 @@
 var fs = require('fs');
+var mime = require('mime');
+var redirect = require('redirect').redirect;
 var util = require('util');
 
-var redirect = require('redirect').redirect;
-
-exports.create = function( response, user_info, game ) {
-	require( './games/' + game ).createGathering( user_info.name );
-}
-
-exports.handle = function( response, user_info, parameters ) { // parameters contains [<game>] or [<game>,<possible-id>]
+exports.handle = function( response, user_info, parameters ) { // parameters contains [<game>,...]
 	var game_module = require( './games/' + parameters[0] );
 	
-	if( parameters.length === 1 ) {
-		// game.html should be parameterized somehow
-
-		fs.readFile( 'game.html', 'utf8', function( error, data ) {
+	if( parameters[1] === '' ) {
+		fs.readFile( 'resources/game.html', 'utf8', function( error, data ) {
 			if( error ) {
 				redirect( response, '/', 'could not load game.html' );
 			}
@@ -23,14 +17,56 @@ exports.handle = function( response, user_info, parameters ) { // parameters con
 			}
 		});
 	}
-	else {
-		if( parameters[1] === 'new' ) {
-			var id = game_module.createGathering( user_info.name );
-			redirect( response, '/' + parameters[0] + '/' + id + '/' );
-		}
-		else if( parameters[1] === '' ) {
-		}
+	else if( parameters[1] === 'new' ) {
+		var id = game_module.createGathering( user_info.name );
+		redirect( response, '/' + parameters[0] + '/' + id );
 	}
+	else {
+		var resource_path = 'resources/' + parameters[1];
+	
+		fs.stat( resource_path, function( error, stats ) {
+			if( error ) {
+				if( game_module.gatheringOrGameExistsWithId( parameters[1] ) ) {
+					if( game_module.playerCanJoin( parameters[1], user_info.name ) ) {
+						var game_resource_path = 'games/' + parameters[0] + '/resources/' + game_module.assetForId( parameters[1] );
+			
+						fs.readFile( game_resource_path, 'utf8', function( error, data ) {
+							if( error ) {
+								redirect( response, '/' + parameters[0] + '/', 'could not load ' + game_resource_path );
+							}
+							else {
+								response.writeHead( 200, { 'Content-Type': 'text/html' } );
+								response.end( data );
+							}
+						});
+					}
+					else {
+						redirect( response, '/' + parameters[0] + '/', 'you are not allowed to join game with id ' + parameters[1] );
+					}
+
+				}
+				else {
+					redirect( response, '/' + parameters[0] + '/', 'no game with id ' + parameters[1] );
+				}
+			}
+			else {
+				fs.readFile( resource_path, 'utf8', function( error, data ) {
+					if( error ) {
+						response.writeHead( 500 );
+						response.end();
+					}
+					else {
+						response.writeHead( 200, { 'Content-Type': mime.typeForPath( resource_path ) } );
+						response.end( data );
+					}
+				});
+			}
+		});
+	}
+}
+	
+	
+				
 
 /*	else {
 		else {
@@ -73,21 +109,24 @@ exports.handle = function( response, user_info, parameters ) { // parameters con
 				}
 			});
 		}
-	}*/
-}
+	}
+}*/
 
-exports.handleWS = function( user_info, parameters, ws ) {
+exports.handleWS = function( ws, user_info, parameters ) {
+	console.log( 'game handle parameters' );
+	console.log( parameters );
+
 	var manager = require( './games/' + parameters[0] );
 
-	if( parameters.length > 1 ) {
+	if( parameters[1] === '' ) {
+		manager.watch( ws );
+	}
+	else {
 		if( manager.playerCanJoin( parameters[1], user_info.name ) ) {
 			manager.join( parameters[1], ws, user_info.name );
 		}
 		else {
 			ws.close();
 		}
-	}
-	else {
-		manager.watch( ws );
 	}
 }

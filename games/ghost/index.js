@@ -180,6 +180,10 @@ exports.createGathering = function( creator ) {
 	return id;
 }
 
+exports.gatheringOrGameExistsWithId = function( id ) {
+	return ( in_waiting.hasOwnProperty( id ) || gatherings.hasOwnProperty( id ) || games.hasOwnProperty( id ) );
+}
+
 exports.playerCanJoin = function( id, player_name ) {
 	return ( ( in_waiting.hasOwnProperty( id ) && in_waiting[ id ].creator === player_name ) || gatherings.hasOwnProperty( id ) || ( games.hasOwnProperty( id ) && games[ id ].isPlayer( player_name ) ) );
 }
