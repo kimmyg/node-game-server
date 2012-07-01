@@ -3,6 +3,7 @@
 
 <head>
 <link rel="stylesheet" href="style.css" type="text/css"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="viewport" content="width=device-width,user-scalable=no"/>
 <script type="text/javascript">
 function $( id ) {
@@ -24,7 +25,7 @@ window.onload = function( event ) {
 
 			var a = document.createElement( 'a' );
 
-			a.href = location.pathname + '/' + message.id;
+			a.href = location.pathname + message.id;
 			a.innerText = message.name;
 
 			li.appendChild( a );
@@ -38,7 +39,7 @@ window.onload = function( event ) {
 
 			var a = document.createElement( 'a' );
 
-			a.href = location.pathname + '/' + message.id;
+			a.href = location.pathname + message.id;
 			a.innerText = message.name;
 
 			li.appendChild( a );

@@ -9,21 +9,27 @@ require('object');
 // fix expiration of token for websockets
 // make web-app-capable
 // make scale unavailable, width=device-width
-// add "so and so is typing..."
+// add "so and so is typing..." (and see why it won't show up after sends)
 // change interface to look better
 // make enter in the textfield send the message
 // add leave in gathering
 // clean up game end for ghost
 // add shake to go back to game page
 // add feedback for votes?
-// add timeouts for players with voting to kick players
+// add timeouts for players with voting to kick players*
 // on socket disconnect, attempt reconnect
 // on socket error, do something (maybe same as above)
 // make games reconnectable
 // change urls to be more flexible (like auto redirect on trailing slash, etc.)
 // forfeit option in ghost when challenged
 // add removePlayer from game (logic is special when it's that players turn)
-// fixed isPlayer in network interface
+// fix isPlayer in network interface
+// add cancel button for join games (remember that browser interface will be gone)
+// hide start game button from non-creators instead of disabling it
+// display warnings/failings
+// disconnected behavior for all dynamic pages
+// add chat and presence indicator in game watcher
+
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
@@ -76,6 +82,10 @@ Gathering.prototype.part = function( ws ) {
 	delete this.name_to_index[ player_name ];
 	this.index_to_name.splice( player_index, 1 );
 	
+	for( var i = player_index; i < this.index_to_name.length; ++i ) {
+		this.name_to_index[ this.index_to_name[i] ] = this.name_to_index[ this.index_to_name[i] ] - 1;
+	}
+	
 	this.broadcast( JSON.stringify({ type: 'remove_player', player_name: player_name }) );
 		
 	if( this.index_to_name.length === 0 ) {
@@ -100,7 +110,7 @@ Gathering.prototype.handle = function( ws, message ) {
 
 	if( message.type === 'start' ) {
 		if( sender === this.creator ) {
-			this.emit( 'start', this.id );
+			this.emit( 'request_start', this.id );
 
 			// emit a start and do the next line in the callback?
 			// this.broadcast( JSON.stringify({ type: 'start' }) );
@@ -112,6 +122,28 @@ Gathering.prototype.handle = function( ws, message ) {
 	}
 	else if( message.type === 'chat' ) {
 		this.broadcast( JSON.stringify({ type: 'chat', sender: sender, message: message.message }) );
+	}
+	else if( message.type === 'chat_initiated' ) {
+		message.sender = sender;
+		
+		var broadcast_message = JSON.stringify( message );
+		
+		this.connections.each( function( socket, player_name ) {
+			if( socket !== ws ) {
+				socket.send( broadcast_message );
+			}
+		});
+	}
+	else if( message.type === 'chat_cancelled' ) {
+		message.sender = sender;
+		
+		var broadcast_message = JSON.stringify( message );
+		
+		this.connections.each( function( socket, player_name ) {
+			if( socket !== ws ) {
+				socket.send( broadcast_message );
+			}
+		});
 	}
 	else {
 		console.log( 'unrecognized message type ' + message.type );
@@ -350,6 +382,31 @@ Ghost.prototype.msg_challenge = function( sender ) {
 	}
 }
 
+Ghost.prototype.msg_forfeit = function( sender ) {
+	if( this.state === 2 ) {
+		if( this.substate.challenged === sender ) {
+			for( var i = 0; i < this.players.length; ++i ) {
+				if( this.players[i] === this.substate.challenged ) {
+					this.players.splice( i, 1 );
+				}
+			}
+			
+			this.emit( 'forfeit', this.substate.challenged );
+			
+			this.nextRound();
+		}
+		else {
+			this.emit( 'fail', sender, 'only the challenged player can forfeit' );
+		}
+	}
+	else if( this.state < 3 ) {
+		this.emit( 'fail', sender, 'wrong state' );
+	}
+	else {
+		this.emit( 'critical', 'unknown state: ' + this.state );
+	}
+}
+
 Ghost.prototype.rule = function( ruling ) {
 	if( this.state === 1 ) {
 		if( ruling === 1 || ruling === 2 || ruling === 3 ) {
@@ -466,19 +523,19 @@ function NetworkInterface( id, creator, index_to_name ) {
 
 	var self = this;
 	
-	this.onMessage = function( message ) {
+	this.socket_onMessage = function( message ) {
 		self.handle( this, message );
 	};
 	
-	this.onClose = function() {
+	this.socket_onClose = function() {
 		self.part( this );
 	};
 	
-	this.onCritical = function( message ) {
+	this.game_onCritical = function( message ) {
 		console.log( message );
 	};
 	
-	this.onFail = function( player_index, message ) {
+	this.game_onFail = function( player_index, message ) {
 		self.players.get( self.index_to_name[ player_index ] ).send( JSON.stringify({ type: 'fail', message: message }) );
 	};
 }
@@ -515,8 +572,8 @@ NetworkInterface.prototype.endGame = function() {
 
 
 NetworkInterface.prototype.join = function( ws, player_name ) {
-	ws.on( 'message', this.onMessage );
-	ws.on( 'close', this.onClose );
+	ws.on( 'message', this.socket_onMessage );
+	ws.on( 'close', this.socket_onClose );
 
 	if( this.state === 3 ) { // waiting to start the game
 		var player_index = this.name_to_index[ player_name ];
@@ -541,8 +598,8 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			// transitions are not atomic if there transitions between which 
 			// the user should do nothing
 
-			this.game.on( 'critical', this.onCritical );
-			this.game.on( 'fail', this.onFail );
+			this.game.on( 'critical', this.game_onCritical );
+			this.game.on( 'fail', this.game_onFail );
 
 			this.game.on( 'start', function() {
 				self.state = 0;
@@ -557,9 +614,10 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			});
 
 			this.game.on( 'end', function() {
-				self.emit( 'end' );
-				// client should interpret this as a redirect or something
-				// this may be delayed until client acknowledgement
+				self.emit( 'request_end' ); // should be a delegate method or something, but this makes the relationship better?
+				// if( this.delegate ) {
+				// this.delegate.requestEnd( this );
+				// }
 			});
 
 			this.game.on( 'letter-added', function( player_index, letter ) {
@@ -615,6 +673,28 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 				});
 			});
 			
+			this.game.on( 'forfeit', function( forfeiter_index ) {
+				var message = {
+					type: 'forfeit',
+					forfeiter: forfeiter_index
+				};
+				
+				var broadcast_message = JSON.stringify( message );
+				
+				message.is_forfeiter = true;
+				
+				var target_message = JSON.stringify( message );
+				
+				self.connections.each( function( ws, player_name ) {
+					if( self.name_to_index[ player_name ] === forfeiter_index ) {
+						ws.send( target_message );
+					}
+					else {
+						ws.send( broadcast_message );
+					}
+				});
+			});
+			
 			this.game.on( 'declare', function( declarer_index ) {
 				self.state = 1;
 				self.substate = {
@@ -645,8 +725,26 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 				});
 			});
 			
-			this.game.on( 'out', function( player_index ) {
-				self.broadcast( JSON.stringify({ type: 'out', out: player_index }) );
+			this.game.on( 'out', function( out_index ) {
+				var message = {
+					type: 'out',
+					out: out_index
+				};
+				
+				var broadcast_message = JSON.stringify( message );
+				
+				message.is_out = true;
+				
+				var target_message = JSON.stringify( message );
+				
+				self.connections.each( function( ws, player_name ) {
+					if( self.name_to_index[ player_name ] === out_index ) {
+						ws.send( target_message );
+					}
+					else {
+						ws.send( broadcast_message );
+					}
+				});
 			});
 			
 			this.game.on( 'tie', function() {
@@ -690,12 +788,44 @@ NetworkInterface.prototype.handle = function( ws, message ) {
 				var vote = parseInt( args[1] );
 				
 				if( vote === 1 || vote === 2 ) {
+					console.log( player_name + ' voting ' + vote );
+				
 					if( this.substate.votes[ player_name ] ) {
 						this.substate.votes[ player_name ] = vote;
 					}
 					else {
 						this.substate.votes[ player_name ] = vote;
 						this.substate.votes_left = this.substate.votes_left - 1;
+						
+						if( this.substate.votes_left === 0 ) {
+							var affirm_word_votes = this.substate.votes.fold( 0, function( total, player, vote ) {
+								if( vote === 1 ) {
+									return total + 1;
+								}
+								else {
+									return total;
+								}
+							});
+	
+							var negate_word_votes = this.substate.votes.fold( 0, function( total, player, vote ) {
+								if( vote === 2 ) {
+									return total + 1;
+								}
+								else {
+									return total;
+								}
+							});
+							
+							if( affirm_word_votes > negate_word_votes ) {
+								this.game.rule( 1 );
+							}
+							else if( affirm_word_votes < negate_word_votes ) {
+								this.game.rule( 2 );
+							}
+							else {
+								this.game.rule( 3 );
+							}
+						}
 					}
 				}
 				else {

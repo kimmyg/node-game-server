@@ -116,9 +116,6 @@ exports.join = function( id, ws, player_name ) {
 		delete in_waiting[ id ];
 		
 		gathering.join( ws, player_name );
-		ws.on( 'close', function() {
-			gathering.part( ws );
-		});
 			
 		gatherings[ id ] = gathering;
 		
@@ -133,10 +130,10 @@ exports.join = function( id, ws, player_name ) {
 			emitter.emit( 'rename', id, creator );
 		});
 
-		gathering.on( 'start', function( id ) {
+		gathering.on( 'request_start', function( id ) {
 			var game = gathering.createGame();
 			
-			game.on( 'end', function() {
+			game.on( 'request_end', function() {
 				delete games[ id ];
 			
 				this.endGame();

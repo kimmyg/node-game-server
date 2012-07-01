@@ -113,9 +113,6 @@ exports.handle = function( response, user_info, parameters ) { // parameters con
 }*/
 
 exports.handleWS = function( ws, user_info, parameters ) {
-	console.log( 'game handle parameters' );
-	console.log( parameters );
-
 	var manager = require( './games/' + parameters[0] );
 
 	if( parameters[1] === '' ) {

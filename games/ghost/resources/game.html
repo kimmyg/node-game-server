@@ -2,7 +2,7 @@
 <html>
 
 <head>
-<meta name="viewport" content="width=device-width"/>
+<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1.0"/>
 <style type="text/css">
 body {
 	margin: 0;
@@ -187,7 +187,8 @@ window.onload = function( event ) {
 		}
 		// game ends
 		else if( message.type === 'end' ) {
-			// ???
+			alert( 'game has ended!' );
+			window.location.pathname = '/ghost/'; // how to make this generic?
 		}
 		// round starts
 		else if( message.type === 'round-start' ) {
@@ -199,6 +200,7 @@ window.onload = function( event ) {
 			$('word').innerHTML = '&nbsp;';
 			
 			$('backspace-button').classList.add( 'hidden' );
+			$('forfeit-button').classList.add( 'hidden' );
 			$('declare-button').classList.add( 'hidden' );
 			$('challenge-button').classList.add( 'hidden' );
 			
@@ -264,6 +266,7 @@ window.onload = function( event ) {
 				
 				$('challenge-button').classList.add( 'hidden' );
 				$('backspace-button').classList.remove( 'hidden' );
+				$('forfeit-button').classList.remove( 'hidden' );
 				$('declare-button').classList.remove( 'hidden' );
 				
 				$('turn-interface').classList.remove( 'hidden' );
@@ -276,6 +279,14 @@ window.onload = function( event ) {
 		}
 		// challenge letter added
 		// challenge letter removed
+		else if( message.type === 'forfeit' ) {
+			if( message.is_forfeiter ) {
+				alert( 'You have forfeited.' );
+			}
+			else {
+				alert( players[ message.forfeiter ] + ' has forfeited.' );
+			}
+		}
 		// challenge word declared (voting phase)
 		else if( message.type === 'declare' ) {
 			$('turn-interface').classList.add( 'hidden' );
@@ -293,7 +304,12 @@ window.onload = function( event ) {
 			}
 		}
 		else if( message.type === 'out' ) {
-			alert( players[ message.out ] + ' is out!' );
+			if( message.is_out ) {
+				alert( 'you are out!' );
+			}
+			else {
+				alert( players[ message.out ] + ' is out!' );
+			}
 		}
 		else if( message.type === 'tie' ) {
 			alert( 'It was a tie vote. Nobody is eliminated!' );
@@ -311,7 +327,7 @@ window.onload = function( event ) {
 		// figure out voting timeout strategy
 
 
-		else if( message.type === 'status' ) {
+		else if( message.type === 'fail' ) {
 			$('status').innerText = message.message;
 		}
 		else {
@@ -330,7 +346,7 @@ window.onload = function( event ) {
 	
 	var add_letter = function( event ) {
 		ws.send( 'add|' + event.target.innerText );
-	}
+	};
 	
 	'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split( '' ).forEach( function( letter ) {
 		$('button_' + letter ).onclick = add_letter;
@@ -338,6 +354,10 @@ window.onload = function( event ) {
 	
 	$('backspace-button').onclick = function( event ) {
 		ws.send( 'remove' );
+	};
+	
+	$('forfeit-button').onclick = function( event ) {
+		ws.send( 'forfeit' );
 	};
 	
 	$('challenge-button').onclick = function( event ) {
@@ -398,10 +418,11 @@ window.onload = function( event ) {
 				<a class="gray button" id="button_N">N</a>
 				<a class="gray button" id="button_M">M</a>
 				<a class="gray button" id="button_P">P</a>
+				<a class="gray button" id="backspace-button">&lt;&lt;</a>
 			</div>
 			<div>
-				<span id="backspace-button">
-					<a class="gray button">BACKSPACE</a>
+				<span id="forfeit-button">
+					<a class="gray button">FORFEIT</a>
 				</span>
 				<span id="challenge-button">
 					<a class="gray button">CHALLENGE</a>

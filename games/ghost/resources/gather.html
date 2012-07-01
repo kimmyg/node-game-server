@@ -10,38 +10,43 @@ function $( id ) {
 }
 
 window.onload = function( event ) {
+	var add_player = function( player_name ) {
+		var li = document.createElement( 'li' );
+			
+		li.id = player_name;
+		li.innerText = player_name;
+		
+		$('players').appendChild( li );
+	};
+
 	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
 
 	//ws.onopen = function( event ) {}
 
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
+		
+		console.log( message );
 
 		if( message.type === 'creator' ) {
 			$('start_button').removeAttribute( 'disabled' );
 		}
 		else if( message.type === 'players' ) {
 			for( var i = 0; i < message.players.length; ++i ) {
-				var li = document.createElement( 'li' );
-			
-				li.id = message.players[i];
-				li.innerText = message.players[i];
-		
-				$('players').appendChild( li );
+				add_player( message.players[i] );
 			}
 		}
 		else if( message.type === 'add_player' ) {
-			var li = document.createElement( 'li' );
-				
-			li.id = message.player_name;
-			li.innerText = message.player_name;
-			
-			$('players').appendChild( li );
+			add_player( message.player_name );
 		}
 		else if( message.type === 'remove_player' ) {
 			$('players').removeChild( $( message.player_name ) );
 		}
 		else if( message.type === 'chat' ) {
+			if( $( message.sender + '_typing' ) ) {
+				$('chat').removeChild( $( message.sender + '_typing' ) );
+			}
+		
 			var p = document.createElement( 'p' );
 			
 			var span1 = document.createElement( 'span' );
@@ -53,6 +58,19 @@ window.onload = function( event ) {
 			p.appendChild( span2 );
 
 			$('chat').appendChild( p );
+		}
+		else if( message.type === 'chat_initiated' ) {
+			var p = document.createElement( 'p' );
+			
+			p.className = 'subtle';
+			p.id = message.sender + '_typing';
+			
+			p.innerText = message.sender + ' is typing a message';
+
+			$('chat').appendChild( p );
+		}
+		else if( message.type === 'chat_cancelled' ) {
+			$('chat').removeChild( $( message.sender + '_typing' ) );
 		}
 		else if( message.type === 'start' ) {
 			window.location.reload();
@@ -66,12 +84,45 @@ window.onload = function( event ) {
 	//ws.onclose = function( event ) {}
 	//ws.onerror = function( event ) {}
 	
-	var chat_text_cached_length = 0;
+	var send_chat_message = function( message ) {
+		ws.send( JSON.stringify({ type: 'chat', message: message }) );
+	};
+	
+	var chat_text_had_content = false;
+	
+	var handle_content_change = function() {
+		var chat_text_has_content = $('chat_text').value.length > 0;
+	
+		if( chat_text_had_content ) {
+			if( ! chat_text_has_content ) {
+				$('chat_button').setAttribute( 'disabled', 'disabled' );
+				ws.send( JSON.stringify({ type: 'chat_cancelled' }) );
+			}
+		}
+		else {
+			if( chat_text_has_content ) {
+				$('chat_button').removeAttribute( 'disabled' );
+				ws.send( JSON.stringify({ type: 'chat_initiated' }) );
+			}
+		}
+		
+		chat_text_had_content = chat_text_has_content;
+	};
+	
+	
 
 	$('chat_text').onkeydown = function( event ) {
-		if( chat_text_cached_length === 0 ) {
-			var chat_text_length = event.target.value.length;
+		if( event.keyCode === 13 ) {
+			if( chat_text_had_content ) {
+				send_chat_message( event.target.value );
+				event.target.value = '';
+				chat_text_had_content = false;
+				$('chat_button').setAttribute( 'disabled', 'disabled' );
+			}
 		}
+		else {
+			setTimeout( handle_content_change, 0 );
+		}	
 	};
 			
 
@@ -82,8 +133,9 @@ window.onload = function( event ) {
 	// set this button to disable when there's no content, but keep the check there
 	$('chat_button').onclick = function( event ) {
 		if( $('chat_text').value ) {
-			ws.send( JSON.stringify({ type: 'chat', message: $('chat_text').value }) );
+			send_chat_message( $('chat_text').value );
 			$('chat_text').value = '';
+			chat_text_had_content = false;
 		}
 	};
 };
@@ -94,7 +146,7 @@ window.onload = function( event ) {
 	<ul id="players"></ul>
 	<div id="chat"></div>
 	<input id="chat_text" type="text"/>
-	<button id="chat_button">Send</button>
+	<button id="chat_button" disabled="disabled">Send</button>
 	<button id="start_button" disabled="disabled">Start Game</button>
 </body>
 
