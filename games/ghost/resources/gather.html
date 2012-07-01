@@ -29,7 +29,7 @@ window.onload = function( event ) {
 		console.log( message );
 
 		if( message.type === 'creator' ) {
-			$('start_button').removeAttribute( 'disabled' );
+			$('start-button').classList.remove( 'hidden' );
 		}
 		else if( message.type === 'players' ) {
 			for( var i = 0; i < message.players.length; ++i ) {
@@ -95,13 +95,13 @@ window.onload = function( event ) {
 	
 		if( chat_text_had_content ) {
 			if( ! chat_text_has_content ) {
-				$('chat_button').setAttribute( 'disabled', 'disabled' );
+				$('chat-button').setAttribute( 'disabled', 'disabled' );
 				ws.send( JSON.stringify({ type: 'chat_cancelled' }) );
 			}
 		}
 		else {
 			if( chat_text_has_content ) {
-				$('chat_button').removeAttribute( 'disabled' );
+				$('chat-button').removeAttribute( 'disabled' );
 				ws.send( JSON.stringify({ type: 'chat_initiated' }) );
 			}
 		}
@@ -117,7 +117,7 @@ window.onload = function( event ) {
 				send_chat_message( event.target.value );
 				event.target.value = '';
 				chat_text_had_content = false;
-				$('chat_button').setAttribute( 'disabled', 'disabled' );
+				$('chat-button').setAttribute( 'disabled', 'disabled' );
 			}
 		}
 		else {
@@ -125,18 +125,23 @@ window.onload = function( event ) {
 		}	
 	};
 			
-
-	$('start_button').onclick = function( event ) {
-		ws.send( JSON.stringify({ type: 'start' }) );
-	};
-
 	// set this button to disable when there's no content, but keep the check there
-	$('chat_button').onclick = function( event ) {
+	$('chat-button').onclick = function( event ) {
 		if( $('chat_text').value ) {
 			send_chat_message( $('chat_text').value );
 			$('chat_text').value = '';
 			chat_text_had_content = false;
 		}
+	};
+	
+	$('leave-button').onclick = function( event ) { // change to shake to leave for consistency?
+		if( confirm( 'Leave this gathering?' ) ) {
+			window.location.href = '/ghost/'; // make extensible somehow, abstract
+		}
+	};
+	
+	$('start-button').onclick = function( event ) {
+		ws.send( JSON.stringify({ type: 'start' }) );
 	};
 };
 </script>
@@ -146,8 +151,9 @@ window.onload = function( event ) {
 	<ul id="players"></ul>
 	<div id="chat"></div>
 	<input id="chat_text" type="text"/>
-	<button id="chat_button" disabled="disabled">Send</button>
-	<button id="start_button" disabled="disabled">Start Game</button>
+	<button id="chat-button" disabled="disabled">Send</button>
+	<button id="leave-button">Leave</button>
+	<button id="start-button" class="hidden">Start Game</button>
 </body>
 
 </html>
