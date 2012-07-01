@@ -7,21 +7,21 @@ require('object');
 
 // should not be able to join from another device!
 // fix expiration of token for websockets
-// make web-app-capable
-// make scale unavailable, width=device-width
-// add "so and so is typing..." (and see why it won't show up after sends)
+// make web-app-capable DONE
+// make scale unavailable, width=device-width DONE
+// add "so and so is typing..." (and see why it won't show up after sends) DONE
 // change interface to look better
-// make enter in the textfield send the message
+// make enter in the textfield send the message DONE
 // add leave in gathering
-// clean up game end for ghost
+// clean up game end for ghost DONE
 // add shake to go back to game page
-// add feedback for votes?
+// add feedback for votes?*
 // add timeouts for players with voting to kick players*
 // on socket disconnect, attempt reconnect
 // on socket error, do something (maybe same as above)
 // make games reconnectable
-// change urls to be more flexible (like auto redirect on trailing slash, etc.)
-// forfeit option in ghost when challenged
+// change urls to be more flexible (like auto redirect on trailing slash, etc.) DONE
+// forfeit option in ghost when challenged DONE
 // add removePlayer from game (logic is special when it's that players turn)
 // fix isPlayer in network interface
 // add cancel button for join games (remember that browser interface will be gone)
@@ -29,7 +29,11 @@ require('object');
 // display warnings/failings
 // disconnected behavior for all dynamic pages
 // add chat and presence indicator in game watcher
-
+// add javascript to joining games
+// change transferred state to not leak?
+// change status messages to alerts and remove status bar
+// add chat to game?
+// change ghost to start with next player next round
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
@@ -788,8 +792,6 @@ NetworkInterface.prototype.handle = function( ws, message ) {
 				var vote = parseInt( args[1] );
 				
 				if( vote === 1 || vote === 2 ) {
-					console.log( player_name + ' voting ' + vote );
-				
 					if( this.substate.votes[ player_name ] ) {
 						this.substate.votes[ player_name ] = vote;
 					}

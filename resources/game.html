@@ -26,6 +26,7 @@ window.onload = function( event ) {
 			var a = document.createElement( 'a' );
 
 			a.href = location.pathname + message.id;
+			a.onclick = 'window.location.href=this.href;return false';
 			a.innerText = message.name;
 
 			li.appendChild( a );
@@ -78,7 +79,7 @@ window.onload = function( event ) {
 		<ul id="gatherings"></ul>
 	</div>
 	
-	<a class="button" href="/ghost/new">create game</a>
+	<a class="button" href="/ghost/new" onclick="window.location.href=this.href;return false">create game</a>
 </body>
 
 </html>
