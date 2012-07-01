@@ -34,6 +34,8 @@ require('object');
 // change status messages to alerts and remove status bar
 // add chat to game?
 // change ghost to start with next player next round
+// fix chat to account for autocorrect (if send word with autocorrect displayed, will fill text with word once enter is pressed.)
+// make all names uniform width
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
@@ -179,6 +181,8 @@ Ghost.prototype.start = function() {
 	for( var i = 0; i < this.n; ++i ) {
 		this.players.push( i );
 	}
+	
+	//this.turn?
 	
 	this.emit( 'start' );
 	

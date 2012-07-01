@@ -26,7 +26,7 @@ window.onload = function( event ) {
 			var a = document.createElement( 'a' );
 
 			a.href = location.pathname + message.id;
-			a.onclick = 'window.location.href=this.href;return false';
+			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
 			a.innerText = message.name;
 
 			li.appendChild( a );
@@ -41,6 +41,7 @@ window.onload = function( event ) {
 			var a = document.createElement( 'a' );
 
 			a.href = location.pathname + message.id;
+			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
 			a.innerText = message.name;
 
 			li.appendChild( a );
