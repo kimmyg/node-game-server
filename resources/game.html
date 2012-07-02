@@ -5,59 +5,72 @@
 <link rel="stylesheet" href="style.css" type="text/css"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="viewport" content="width=device-width,user-scalable=no"/>
+<script type="text/javascript" src="/js/prelude.js"></script>
+<script type="text/javascript" src="/js/list.js"></script>
 <script type="text/javascript">
-function $( id ) {
-	return document.getElementById( id );
+var createCreateButtonElement = function() {
+	var create_a = document.createElement( 'a' );
+	
+	create_a.className = 'button';
+	create_a.id = 'create-button';
+	create_a.href = 'new';
+	create_a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
+	create_a.innerText = 'create game';
+	
+	return create_a;
 }
 
 window.onload = function( event ) {
+	var games = null;
+	var gatherings = null;
+
 	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
 
-	//ws.onopen = function( event ) {}
+	ws.onopen = function( event ) {
+		var main = $('main');
+		
+		// remove status message
+		
+		games = new List( 'games', 'games in progress' );
+		main.appendChild( games.createElement() );
+		
+		gatherings = new List( 'gatherings', 'gatherings' );
+		main.appendChild( gatherings.createElement() );
+		
+		main.appendChild( createCreateButtonElement() );
+	}
 
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
 
-		if( message.type === 'add-game' ) {
-			var li = document.createElement( 'li' );
+		if( message.type === 'game-add' ) {
+			var a = document.createElement( 'a' );
 
-			li.id = message.id;
-
+			a.href = message.id;
+			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
+			a.innerText = message.name;
+		
+			games.add( message.id, a );
+		}
+		else if( message.type === 'gathering-add' ) {
 			var a = document.createElement( 'a' );
 
 			a.href = location.pathname + message.id;
 			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
 			a.innerText = message.name;
-
-			li.appendChild( a );
-
-			$('games').appendChild( li );
-		}
-		else if( message.type === 'add-gathering' ) {
-			var li = document.createElement( 'li' );
-
-			li.id = message.id;
-
-			var a = document.createElement( 'a' );
-
-			a.href = location.pathname + message.id;
-			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
-			a.innerText = message.name;
-
-			li.appendChild( a );
-
-			$('gatherings').appendChild( li );
-		}
-		else if( message.type === 'remove' ) {
-			var element = $( message.id );
 			
-			console.log( message.id );
-			console.log( element );
-			
-			element.parentElement.removeChild( element );
+			gatherings.add( message.id, a );
 		}
-		else if( message.type === 'rename' ) {
-			$( message.id ).children[0].innerText = message.name;
+		else if( message.type === 'game-remove' ) {
+			games.remove( message.id );
+		}
+		else if( message.type === 'gathering-remove' ) {
+			gatherings.remove( message.id );
+		}
+		else if( message.type === 'gathering-rename' ) {
+			gatherings.transform( message.id, function( element ) {
+				element.innerText = message.name;
+			});
 		}
 		else {
 			console.log( 'unrecognized message type: ' + message.type );
@@ -70,17 +83,6 @@ window.onload = function( event ) {
 </script>
 </head>
 
-<body>
-	<div class="header">
-		<span class="title">games in progress</span>
-		<ul id="games"></ul>
-	</div>
-	<div class="header">
-		<span class="title">gatherings</span>
-		<ul id="gatherings"></ul>
-	</div>
-	
-	<a class="button" id="create-button" href="new" onclick="window.location.href=this.href;return false">create game</a>
-</body>
+<body id="main"></body>
 
 </html>

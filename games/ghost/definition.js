@@ -35,7 +35,9 @@ require('object');
 // update state of chat when players leave
 // fix vote in ghost to either not go to eliminated players or to incorporate them. (it does now correctly, right?)
 // change authentication to encrypt with shared secret, not pass it in clear. (it only needs to prove it knows) also, think about the security of this scheme more. see kerberos.
-// change creator flag to game-revoke-start and pass it to the first person in a multiple player game TEST
+// change creator flag to game-revoke-start and pass it to the first person in a multiple player game DONE
+// change game watch page to use an init message to initialize state
+
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );

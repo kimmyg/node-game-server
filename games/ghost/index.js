@@ -66,40 +66,45 @@ var games = {};
 var emitter = new EventEmitter();
 
 exports.watch = function( ws ) {
-	var add_gatheringCB = function( id, creator ) {
-		ws.send( JSON.stringify({ type: 'add-gathering', id: id, name: creator }) );
+	var gathering_addCB = function( id, creator ) {
+		ws.send( JSON.stringify({ type: 'gathering-add', id: id, name: creator }) );
 	};
 	
-	var add_gameCB = function( id, creator ) {
-		ws.send( JSON.stringify({ type: 'add-game', id: id, name: creator }) );
+	var game_addCB = function( id, creator ) {
+		ws.send( JSON.stringify({ type: 'game-add', id: id, name: creator }) );
 	};
 
-	var removeCB = function( id ) {
-		ws.send( JSON.stringify({ type: 'remove', id: id }) );
+	var gathering_removeCB = function( id ) {
+		ws.send( JSON.stringify({ type: 'gathering-remove', id: id }) );
+	};
+	var game_removeCB = function( id ) {
+		ws.send( JSON.stringify({ type: 'game-remove', id: id }) );
 	};
 	
-	var renameCB = function( id, name ) {
-		ws.send( JSON.stringify({ type: 'rename', id: id, name: name }) );
+	var gathering_renameCB = function( id, name ) {
+		ws.send( JSON.stringify({ type: 'gathering-rename', id: id, name: name }) );
 	};
 
-	emitter.addListener( 'add-gathering', add_gatheringCB );
-	emitter.addListener( 'add-game', add_gameCB );
-	emitter.addListener( 'remove', removeCB );
-	emitter.addListener( 'rename', renameCB );
+	emitter.addListener( 'gathering-add', gathering_addCB );
+	emitter.addListener( 'game-add', game_addCB );
+	emitter.addListener( 'gathering-remove', gathering_removeCB );
+	emitter.addListener( 'game-remove', game_removeCB );
+	emitter.addListener( 'gathering-rename', gathering_renameCB );
 
 	ws.on( 'close', function() {
-		emitter.removeListener( 'add-gathering', add_gatheringCB );
-		emitter.removeListener( 'add-game', add_gameCB );
-		emitter.removeListener( 'remove', removeCB );
-		emitter.removeListener( 'rename', renameCB );
+		emitter.removeListener( 'gathering-add', gathering_addCB );
+		emitter.removeListener( 'game-add', game_addCB );
+		emitter.removeListener( 'gathering-remove', gathering_removeCB );
+		emitter.removeListener( 'game-remove', game_removeCB );
+		emitter.removeListener( 'gathering-rename', gathering_renameCB );
 	});
 
 	gatherings.eachValue( function( gathering ) {
-		ws.send( JSON.stringify({ type: 'add-gathering', id: gathering.id, name: gathering.creator }) );
+		ws.send( JSON.stringify({ type: 'gathering-add', id: gathering.id, name: gathering.creator }) );
 	});
 	
 	games.eachValue( function( game ) {
-		ws.send( JSON.stringify({ type: 'add-game', id: game.id, name: game.creator }) );
+		ws.send( JSON.stringify({ type: 'game-add', id: game.id, name: game.creator }) );
 	});
 }
 
@@ -119,15 +124,15 @@ exports.join = function( id, ws, player_name ) {
 			
 		gatherings[ id ] = gathering;
 		
-		emitter.emit( 'add-gathering', gathering.id, gathering.creator );
+		emitter.emit( 'gathering-add', gathering.id, gathering.creator );
 		
 		gathering.on( 'empty', function() {
 			delete gatherings[ id ];
-			emitter.emit( 'remove', id );
+			emitter.emit( 'gathering-remove', id );
 		});
 		
 		gathering.on( 'new-creator', function( id, creator ) {
-			emitter.emit( 'rename', id, creator );
+			emitter.emit( 'gathering-rename', id, creator );
 		});
 
 		gathering.on( 'request-start', function( id ) {
@@ -144,8 +149,8 @@ exports.join = function( id, ws, player_name ) {
 			
 			gathering.startGame();
 			
-			emitter.emit( 'remove', id );
-			emitter.emit( 'add-game', game.id, game.creator );
+			emitter.emit( 'gathering-remove', id );
+			emitter.emit( 'game-add', game.id, game.creator );
 		});
 	}
 	else if( gatherings.hasOwnProperty( id ) ) {

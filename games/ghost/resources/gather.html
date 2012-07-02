@@ -8,6 +8,38 @@
 <script type="text/javascript" src="/js/player-list.js"></script>
 <script type="text/javascript" src="/js/chat.js"></script>
 <script type="text/javascript">
+var createConnectingMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'connecting to server...';
+	
+	return element;
+}
+
+var createConnectingMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'connecting to server...';
+	
+	return element;
+}
+
+var createDisconnectedMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'disconnected from server';
+	
+	return element;
+}
+
+var createDisconnectedErrorMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'disconnected from server (error)';
+	
+	return element;
+}
+
 var createLeaveButtonElement = function() {
 	var element = document.createElement( 'button' );
 	
@@ -35,17 +67,45 @@ var removeStartButton = function() {
 }
 
 window.onload = function( event ) {
-	var player_list = new PlayerList( 'player-list' );
-	$('main').appendChild( player_list.createElement() );
-	
-	var chat = new Chat( 'chat' );
-	$('main').appendChild( chat.createElement() );
-	
-	$('main').appendChild( createLeaveButtonElement() );
 
+	$('main').appendChild( createConnectingMessageElement() );
+
+	var player_list = null;
+	var chat = null;
+	
 	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
 
-	//ws.onopen = function( event ) {}
+	ws.onopen = function( event ) {
+		var main = $('main');
+		
+		main.removeChild( main.children[0] );
+	
+		player_list = new PlayerList( 'player-list' );
+		main.appendChild( player_list.createElement() );
+		
+		chat = new Chat( 'chat' );
+		main.appendChild( chat.createElement() );
+		
+		main.appendChild( createLeaveButtonElement() );
+		
+		chat.on_message_send = function( message ) {
+			ws.send( JSON.stringify({ type: 'chat', message: message }) );
+		};
+		
+		chat.on_compose_start = function() {
+			ws.send( JSON.stringify({ type: 'chat-compose-start' }) );
+		};
+		
+		chat.on_compose_cancel = function() {
+			ws.send( JSON.stringify({ type: 'chat-compose-cancel' }) );
+		};
+		
+		$('leave-button').onclick = function( event ) { // change to shake to leave for consistency?
+			if( confirm( 'Leave this gathering?' ) ) {
+				window.location.href = '/ghost/'; // make extensible somehow, abstract
+			}
+		};
+	}
 
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
@@ -74,6 +134,7 @@ window.onload = function( event ) {
 		}
 		else if( message.type === 'player-remove' ) {
 			player_list.remove( message.player_name );
+			chat.composeCancel( message.player_name );
 		}
 		else if( message.type === 'chat' ) {
 			chat.addMessage( message.sender, message.message );
@@ -93,26 +154,25 @@ window.onload = function( event ) {
 
 	};
 
-	//ws.onclose = function( event ) {}
-	//ws.onerror = function( event ) {}
-	
-	chat.on_message_send = function( message ) {
-		ws.send( JSON.stringify({ type: 'chat', message: message }) );
-	};
-	
-	chat.on_compose_start = function() {
-		ws.send( JSON.stringify({ type: 'chat-compose-start' }) );
-	};
-	
-	chat.on_compose_cancel = function() {
-		ws.send( JSON.stringify({ type: 'chat-compose-cancel' }) );
-	};
-	
-	$('leave-button').onclick = function( event ) { // change to shake to leave for consistency?
-		if( confirm( 'Leave this gathering?' ) ) {
-			window.location.href = '/ghost/'; // make extensible somehow, abstract
+	ws.onclose = function( event ) {
+		var main = $('main');
+		
+		while( main.children.length > 0 ) {
+			main.removeChild( main.children[0] );
 		}
-	};	
+		
+		main.appendChild( createDisconnectedMessageElement() );
+	}
+	
+	ws.onerror = function( event ) {
+		var main = $('main');
+		
+		while( main.children.length > 0 ) {
+			main.removeChild( main.children[0] );
+		}
+		
+		main.appendChild( createDisconnectedErrorMessageElement() );
+	}	
 };
 </script>
 </head>
