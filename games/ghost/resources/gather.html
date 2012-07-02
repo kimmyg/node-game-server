@@ -26,6 +26,14 @@ var createStartButtonElement = function() {
 	return element;
 }
 
+var removeStartButton = function() {
+	var start_button = $('start-button');
+	
+	if( start_button ) {
+		start_button.parentElement.removeChild( start_button );
+	}
+}
+
 window.onload = function( event ) {
 	var player_list = new PlayerList( 'player-list' );
 	$('main').appendChild( player_list.createElement() );
@@ -44,7 +52,7 @@ window.onload = function( event ) {
 		
 		console.log( message );
 
-		if( message.type === 'creator' ) {
+		if( message.type === 'game-allow-start' ) {
 			var start_button = createStartButtonElement();
 			
 			start_button.onclick = function( event ) {
@@ -52,6 +60,9 @@ window.onload = function( event ) {
 			};
 		
 			$('main').appendChild( start_button );
+		}
+		else if( message.type === 'game-revoke-start' ) {
+			removeStartButton();
 		}
 		else if( message.type === 'player-list' ) {
 			for( var i = 0; i < message.players.length; ++i ) {

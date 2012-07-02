@@ -11,8 +11,6 @@ require('object');
 // make scale unavailable, width=device-width DONE
 // add "so and so is typing..." (and see why it won't show up after sends) DONE
 // change interface to look better
-// make enter in the textfield send the message DONE
-// add leave in gathering DONE
 // clean up game end for ghost DONE
 // add shake to go back to game page
 // add feedback for votes?*
@@ -20,12 +18,10 @@ require('object');
 // on socket disconnect, attempt reconnect
 // on socket error, do something (maybe same as above)
 // make games reconnectable
-// change urls to be more flexible (like auto redirect on trailing slash, etc.) DONE
 // forfeit option in ghost when challenged DONE
 // add removePlayer from game (logic is special when it's that players turn)
 // fix isPlayer in network interface
 // add cancel button for join games (remember that browser interface will be gone)
-// hide start game button from non-creators instead of disabling it DONE
 // display warnings/failings
 // disconnected behavior for all dynamic pages
 // add chat and presence indicator in game watcher
@@ -33,14 +29,13 @@ require('object');
 // change transferred state to not leak information (from ghost to adapter, for instance)?
 // change status messages to alerts and remove status bar?
 // add chat to game?
-// change ghost to start with next player next round DONE
 // fix chat to account for autocorrect (if send word with autocorrect displayed, will fill text with word once enter is pressed.)
 // make all names uniform width
 // get state of chat when joining (past messages perhaps, currently composing players)
 // update state of chat when players leave
 // fix vote in ghost to either not go to eliminated players or to incorporate them. (it does now correctly, right?)
 // change authentication to encrypt with shared secret, not pass it in clear. (it only needs to prove it knows) also, think about the security of this scheme more. see kerberos.
-// 
+// change creator flag to game-revoke-start and pass it to the first person in a multiple player game TEST
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
@@ -61,7 +56,7 @@ function Gathering( id, creator ) {
 	};
 	
 	this.socket_onClose = function() {
-		self.part( this );
+		self.leave( this );
 	};
 }
 
@@ -71,9 +66,7 @@ Gathering.prototype.join = function( ws, player_name ) {
 	ws.on( 'message', this.socket_onMessage );
 	ws.on( 'close', this.socket_onClose );
 
-	if( this.index_to_name.length === 0 ) {
-		ws.send( JSON.stringify({ type: 'creator' }) );
-	}
+	var game_now_has_multiple_players = this.index_to_name.length === 1;
 
 	this.name_to_index[ player_name ] = this.index_to_name.length;
 	this.index_to_name.push( player_name );
@@ -83,9 +76,13 @@ Gathering.prototype.join = function( ws, player_name ) {
 	
 	this.connections.set( ws, player_name );
 	this.players.set( player_name, ws );
+	
+	if( game_now_has_multiple_players ) {
+		this.players.get( this.index_to_name[0] ).send( JSON.stringify({ type: 'game-allow-start' }) );
+	}
 }
 
-Gathering.prototype.part = function( ws ) {
+Gathering.prototype.leave = function( ws ) {
 	var player_name = this.connections.delete( ws ), player_index = this.name_to_index[ player_name ];
 	
 	this.players.delete( player_name );
@@ -102,11 +99,20 @@ Gathering.prototype.part = function( ws ) {
 	if( this.index_to_name.length === 0 ) {
 		this.emit( 'empty' );
 	}
-	else if( player_index === 0 ) {
-		this.creator = this.index_to_name[0];
+	else {
+		if( player_index === 0 ) {
+			this.creator = this.index_to_name[0];
+			this.emit( 'new-creator', this.creator );
 			
-		this.emit( 'new-creator', this.creator );
-		this.players.get( this.creator ).send( JSON.stringify({ type: 'creator' }) );
+			if( this.index_to_name.length > 1 ) {
+				this.players.get( this.creator ).send( JSON.stringify({ type: 'game-allow-start' }) );
+			}
+		}
+		else {
+			if( this.index_to_name.length === 1 ) {
+				this.players.get( this.creator ).send( JSON.stringify({ type: 'game-revoke-start' }) );
+			}
+		}
 	}
 }
 
@@ -551,7 +557,7 @@ function NetworkInterface( id, creator, index_to_name ) {
 	};
 	
 	this.socket_onClose = function() {
-		self.part( this );
+		self.leave( this );
 	};
 	
 	this.game_onCritical = function( message ) {
@@ -782,7 +788,7 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 	}
 }
 
-NetworkInterface.prototype.part = function( ws ) {
+NetworkInterface.prototype.leave = function( ws ) {
 	var player_name = this.connections.delete( ws );
 
 	this.players.delete( player_name );
