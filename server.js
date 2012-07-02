@@ -30,48 +30,45 @@ hs.on( 'request', function( request, response ) {
 		if( pathname.substring( 0, 1 ) === '/' ) {
 			var components = pathname.split( '/' ).slice( 1 );
 
-			if( components.length === 1 ) {
-				if( components[0] === '' ) {
+			if( components[0] === '' ) {
+				if( components.length === 1 ) {
 					main.handle( response, info );
 				}
 				else {
-					var filepath = 'resources/' + components[0];
-				
-					fs.stat( filepath, function( error, stats ) {
-						if( error ) {
-							fs.stat( 'games/' + components[0], function( error, stats ) {
-								if( error ) {
-									response.writeHead( 404 );
-									response.end();
-								}
-								else {
-									redirect( response, '/' + components.join( '/' ) + '/' );
-								}
-							});
-						}
-						else {
-							fs.readFile( filepath, 'utf8', function( error, data ) {
-								if( error ) {
-									response.writeHead( 500 );
-									response.end();
-								}
-								else {
-									response.writeHead( 200, { 'Content-Type': mime.typeForPath( filepath ) } );
-									response.end( data );
-								}
-							});
-						}
-					});								
+					// some problem here
 				}
 			}
 			else {
 				fs.stat( 'games/' + components[0], function( error, stats ) {
 					if( error ) {
-						response.writeHead( 404 );
-						response.end();	
+						var filepath = 'resources/' + components.join( '/' );
+						
+						fs.stat( filepath, function( error, stats ) {
+							if( error ) {
+								response.writeHead( 404 );
+								response.end();
+							}
+							else {
+								fs.readFile( filepath, 'utf8', function( error, data ) {
+									if( error ) {
+										response.writeHead( 500 );
+										response.end();
+									}
+									else {
+										response.writeHead( 200, { 'Content-Type': mime.typeForPath( filepath ) } );
+										response.end( data );
+									}
+								});
+							}
+						});
 					}
 					else {
-						game.handle( response, info, components );
+						if( components.length === 1 ) {
+							redirect( response, '/' + components[0] + '/' );
+						}
+						else {
+							game.handle( response, info, components );
+						}
 					}
 				});
 			}

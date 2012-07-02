@@ -2,22 +2,38 @@
 <html>
 
 <head>
+<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1"/>
 <link rel="stylesheet" href="style.css" type="text/css"/>
-<meta name="viewport" content="width=device-width,user-scalable=no"/>
+<script type="text/javascript" src="/js/prelude.js"></script>
+<script type="text/javascript" src="/js/player-list.js"></script>
+<script type="text/javascript" src="/js/chat.js"></script>
 <script type="text/javascript">
-function $( id ) {
-	return document.getElementById( id );
+var createLeaveButtonElement = function() {
+	var element = document.createElement( 'button' );
+	
+	element.id = 'leave-button';
+	element.innerText = 'Leave';
+	
+	return element;
+}
+
+var createStartButtonElement = function() {
+	var element = document.createElement( 'button' );
+	
+	element.id = 'start-button';
+	element.innerText = 'Start';
+	
+	return element;
 }
 
 window.onload = function( event ) {
-	var add_player = function( player_name ) {
-		var li = document.createElement( 'li' );
-			
-		li.id = player_name;
-		li.innerText = player_name;
-		
-		$('players').appendChild( li );
-	};
+	var player_list = new PlayerList( 'player-list' );
+	$('main').appendChild( player_list.createElement() );
+	
+	var chat = new Chat( 'chat' );
+	$('main').appendChild( chat.createElement() );
+	
+	$('main').appendChild( createLeaveButtonElement() );
 
 	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
 
@@ -29,48 +45,33 @@ window.onload = function( event ) {
 		console.log( message );
 
 		if( message.type === 'creator' ) {
-			$('start-button').classList.remove( 'hidden' );
+			var start_button = createStartButtonElement();
+			
+			start_button.onclick = function( event ) {
+				ws.send( JSON.stringify({ type: 'start' }) );
+			};
+		
+			$('main').appendChild( start_button );
 		}
-		else if( message.type === 'players' ) {
+		else if( message.type === 'player-list' ) {
 			for( var i = 0; i < message.players.length; ++i ) {
-				add_player( message.players[i] );
+				player_list.add( message.players[i] );
 			}
 		}
-		else if( message.type === 'add_player' ) {
-			add_player( message.player_name );
+		else if( message.type === 'player-add' ) {
+			player_list.add( message.player_name );
 		}
-		else if( message.type === 'remove_player' ) {
-			$('players').removeChild( $( message.player_name ) );
+		else if( message.type === 'player-remove' ) {
+			player_list.remove( message.player_name );
 		}
 		else if( message.type === 'chat' ) {
-			if( $( message.sender + '_typing' ) ) {
-				$('chat').removeChild( $( message.sender + '_typing' ) );
-			}
-		
-			var p = document.createElement( 'p' );
-			
-			var span1 = document.createElement( 'span' );
-			span1.innerText = message.sender;
-			p.appendChild( span1 );
-
-			var span2 = document.createElement( 'span' );
-			span2.innerText = message.message;
-			p.appendChild( span2 );
-
-			$('chat').appendChild( p );
+			chat.addMessage( message.sender, message.message );
 		}
-		else if( message.type === 'chat_initiated' ) {
-			var p = document.createElement( 'p' );
-			
-			p.className = 'subtle';
-			p.id = message.sender + '_typing';
-			
-			p.innerText = message.sender + ' is typing a message';
-
-			$('chat').appendChild( p );
+		else if( message.type === 'chat-compose-start' ) {
+			chat.composeStart( message.sender );
 		}
-		else if( message.type === 'chat_cancelled' ) {
-			$('chat').removeChild( $( message.sender + '_typing' ) );
+		else if( message.type === 'chat-compose-cancel' ) {
+			chat.composeCancel( message.sender );
 		}
 		else if( message.type === 'start' ) {
 			window.location.reload();
@@ -84,76 +85,28 @@ window.onload = function( event ) {
 	//ws.onclose = function( event ) {}
 	//ws.onerror = function( event ) {}
 	
-	var send_chat_message = function( message ) {
+	chat.on_message_send = function( message ) {
 		ws.send( JSON.stringify({ type: 'chat', message: message }) );
 	};
 	
-	var chat_text_had_content = false;
-	
-	var handle_content_change = function() {
-		var chat_text_has_content = $('chat_text').value.length > 0;
-	
-		if( chat_text_had_content ) {
-			if( ! chat_text_has_content ) {
-				$('chat-button').setAttribute( 'disabled', 'disabled' );
-				ws.send( JSON.stringify({ type: 'chat_cancelled' }) );
-			}
-		}
-		else {
-			if( chat_text_has_content ) {
-				$('chat-button').removeAttribute( 'disabled' );
-				ws.send( JSON.stringify({ type: 'chat_initiated' }) );
-			}
-		}
-		
-		chat_text_had_content = chat_text_has_content;
+	chat.on_compose_start = function() {
+		ws.send( JSON.stringify({ type: 'chat-compose-start' }) );
 	};
 	
-	
-
-	$('chat_text').onkeydown = function( event ) {
-		if( event.keyCode === 13 ) {
-			if( chat_text_had_content ) {
-				send_chat_message( event.target.value );
-				event.target.value = '';
-				chat_text_had_content = false;
-				$('chat-button').setAttribute( 'disabled', 'disabled' );
-			}
-		}
-		else {
-			setTimeout( handle_content_change, 0 );
-		}	
-	};
-			
-	// set this button to disable when there's no content, but keep the check there
-	$('chat-button').onclick = function( event ) {
-		if( $('chat_text').value ) {
-			send_chat_message( $('chat_text').value );
-			$('chat_text').value = '';
-			chat_text_had_content = false;
-		}
+	chat.on_compose_cancel = function() {
+		ws.send( JSON.stringify({ type: 'chat-compose-cancel' }) );
 	};
 	
 	$('leave-button').onclick = function( event ) { // change to shake to leave for consistency?
 		if( confirm( 'Leave this gathering?' ) ) {
 			window.location.href = '/ghost/'; // make extensible somehow, abstract
 		}
-	};
-	
-	$('start-button').onclick = function( event ) {
-		ws.send( JSON.stringify({ type: 'start' }) );
-	};
+	};	
 };
 </script>
 </head>
 
-<body>
-	<ul id="players"></ul>
-	<div id="chat"></div>
-	<input id="chat_text" type="text"/>
-	<button id="chat-button" disabled="disabled">Send</button>
-	<button id="leave-button">Leave</button>
-	<button id="start-button" class="hidden">Start Game</button>
+<body id="main">
 </body>
 
 </html>

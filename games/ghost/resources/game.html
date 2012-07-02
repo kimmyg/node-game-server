@@ -122,6 +122,15 @@ body {
 .absent {
 	background: gray;
 }
+
+div#status {
+	position: absolute;
+	bottom: 0;
+	background-color: white;
+	width: 100%;
+	border-top: solid black 1px;
+	padding: 2px 0;
+}
 </style>
 <script type="text/javascript">
 function $( id ) {
@@ -385,7 +394,6 @@ window.onload = function( event ) {
 
 <body id="main">
 	<table id="players_container"><tr id="players"></td></table>
-	<div id="status"></div>
 	<div id="interface">
 		<div id="bubble">
 			<span id="word"></span>
@@ -437,37 +445,7 @@ window.onload = function( event ) {
 			<a class="gray button" id="negate-declared-button"><span id="negate-declared-word"></span> is <em>not</em> a word</a>
 		</div>
 	</div>
-	
-</body>
-
-</html>
-
-<!--<body>
-	<span id="word"></span>
-	<div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-		<div>a</div>
-	</div>
-	<div>
-		<div>challenge</div>
-		<div>declare</div>
-	</div>
-	<div>
-		<div>Is this a word?</div>
-		<div>Yes</div>
-		<div>No</div>
-	</div>
-	<div>It's your turn./It's kimmyg's turn.</div>
-		<div>Waiting on you and two others./Waiting on you./Waiting on two others.</div>
 	<div id="status"></div>
 </body>
 
-</html>-->
+</html>

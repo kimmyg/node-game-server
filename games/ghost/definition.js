@@ -12,7 +12,7 @@ require('object');
 // add "so and so is typing..." (and see why it won't show up after sends) DONE
 // change interface to look better
 // make enter in the textfield send the message DONE
-// add leave in gathering
+// add leave in gathering DONE
 // clean up game end for ghost DONE
 // add shake to go back to game page
 // add feedback for votes?*
@@ -25,17 +25,22 @@ require('object');
 // add removePlayer from game (logic is special when it's that players turn)
 // fix isPlayer in network interface
 // add cancel button for join games (remember that browser interface will be gone)
-// hide start game button from non-creators instead of disabling it
+// hide start game button from non-creators instead of disabling it DONE
 // display warnings/failings
 // disconnected behavior for all dynamic pages
 // add chat and presence indicator in game watcher
-// add javascript to joining games
-// change transferred state to not leak?
-// change status messages to alerts and remove status bar
+// add javascript to joining games (what does this mean?)
+// change transferred state to not leak information (from ghost to adapter, for instance)?
+// change status messages to alerts and remove status bar?
 // add chat to game?
-// change ghost to start with next player next round
+// change ghost to start with next player next round DONE
 // fix chat to account for autocorrect (if send word with autocorrect displayed, will fill text with word once enter is pressed.)
 // make all names uniform width
+// get state of chat when joining (past messages perhaps, currently composing players)
+// update state of chat when players leave
+// fix vote in ghost to either not go to eliminated players or to incorporate them. (it does now correctly, right?)
+// change authentication to encrypt with shared secret, not pass it in clear. (it only needs to prove it knows) also, think about the security of this scheme more. see kerberos.
+// 
 
 function Gathering( id, creator ) {
 	EventEmitter.call( this );
@@ -73,8 +78,8 @@ Gathering.prototype.join = function( ws, player_name ) {
 	this.name_to_index[ player_name ] = this.index_to_name.length;
 	this.index_to_name.push( player_name );
 
-	ws.send( JSON.stringify({ type: 'players', players: this.index_to_name }) );
-	this.broadcast( JSON.stringify({ type: 'add_player', player_name: player_name }) );
+	ws.send( JSON.stringify({ type: 'player-list', players: this.index_to_name }) );
+	this.broadcast( JSON.stringify({ type: 'player-add', player_name: player_name }) );
 	
 	this.connections.set( ws, player_name );
 	this.players.set( player_name, ws );
@@ -92,7 +97,7 @@ Gathering.prototype.part = function( ws ) {
 		this.name_to_index[ this.index_to_name[i] ] = this.name_to_index[ this.index_to_name[i] ] - 1;
 	}
 	
-	this.broadcast( JSON.stringify({ type: 'remove_player', player_name: player_name }) );
+	this.broadcast( JSON.stringify({ type: 'player-remove', player_name: player_name }) );
 		
 	if( this.index_to_name.length === 0 ) {
 		this.emit( 'empty' );
@@ -100,7 +105,7 @@ Gathering.prototype.part = function( ws ) {
 	else if( player_index === 0 ) {
 		this.creator = this.index_to_name[0];
 			
-		this.emit( 'new_creator', this.creator );
+		this.emit( 'new-creator', this.creator );
 		this.players.get( this.creator ).send( JSON.stringify({ type: 'creator' }) );
 	}
 }
@@ -116,7 +121,7 @@ Gathering.prototype.handle = function( ws, message ) {
 
 	if( message.type === 'start' ) {
 		if( sender === this.creator ) {
-			this.emit( 'request_start', this.id );
+			this.emit( 'request-start', this.id );
 
 			// emit a start and do the next line in the callback?
 			// this.broadcast( JSON.stringify({ type: 'start' }) );
@@ -129,7 +134,7 @@ Gathering.prototype.handle = function( ws, message ) {
 	else if( message.type === 'chat' ) {
 		this.broadcast( JSON.stringify({ type: 'chat', sender: sender, message: message.message }) );
 	}
-	else if( message.type === 'chat_initiated' ) {
+	else if( message.type === 'chat-compose-start' ) {
 		message.sender = sender;
 		
 		var broadcast_message = JSON.stringify( message );
@@ -140,7 +145,7 @@ Gathering.prototype.handle = function( ws, message ) {
 			}
 		});
 	}
-	else if( message.type === 'chat_cancelled' ) {
+	else if( message.type === 'chat-compose-cancel' ) {
 		message.sender = sender;
 		
 		var broadcast_message = JSON.stringify( message );
@@ -182,7 +187,8 @@ Ghost.prototype.start = function() {
 		this.players.push( i );
 	}
 	
-	//this.turn?
+	this.first_turn_index = 0;
+	this.first_turn = this.players[0];
 	
 	this.emit( 'start' );
 	
@@ -205,9 +211,9 @@ Ghost.prototype.startRound = function() {
 
 	this.state = 0;
 	this.substate = {
-		i: 0,
+		i: this.first_turn_index,
 		last: null,
-		turn: this.players[0]
+		turn: this.players[ this.first_turn_index ]
 	};
 	
 	this.emit( 'round-start' );
@@ -228,6 +234,15 @@ Ghost.prototype.nextRound = function() {
 	this.endRound();
 	
 	if( this.players.length > 1 ) {
+		if( this.first_turn_index === this.players.length || this.first_turn < this.players[ this.first_turn_index ] ) {
+			this.first_turn_index = this.first_turn_index % this.players.length;
+		}
+		else {
+			this.first_turn_index = ( this.first_turn_index + 1 ) % this.players.length;
+		}
+		
+		this.first_turn = this.players[ this.first_turn_index ];	
+	
 		this.startRound();
 	}
 	else {
@@ -622,7 +637,7 @@ NetworkInterface.prototype.join = function( ws, player_name ) {
 			});
 
 			this.game.on( 'end', function() {
-				self.emit( 'request_end' ); // should be a delegate method or something, but this makes the relationship better?
+				self.emit( 'request-end' ); // should be a delegate method or something, but this makes the relationship better?
 				// if( this.delegate ) {
 				// this.delegate.requestEnd( this );
 				// }

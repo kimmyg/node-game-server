@@ -18,7 +18,7 @@ window.onload = function( event ) {
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
 
-		if( message.type === 'add_game' ) {
+		if( message.type === 'add-game' ) {
 			var li = document.createElement( 'li' );
 
 			li.id = message.id;
@@ -33,7 +33,7 @@ window.onload = function( event ) {
 
 			$('games').appendChild( li );
 		}
-		else if( message.type === 'add_gathering' ) {
+		else if( message.type === 'add-gathering' ) {
 			var li = document.createElement( 'li' );
 
 			li.id = message.id;
@@ -80,7 +80,7 @@ window.onload = function( event ) {
 		<ul id="gatherings"></ul>
 	</div>
 	
-	<a class="button" href="/ghost/new" onclick="window.location.href=this.href;return false">create game</a>
+	<a class="button" id="create-button" href="new" onclick="window.location.href=this.href;return false">create game</a>
 </body>
 
 </html>
