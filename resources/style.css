@@ -1,4 +1,4 @@
-body, div, p {
+body, div, p, input {
 	margin: 0;
 	padding: 0;
 }
@@ -47,6 +47,9 @@ ul {
 	list-style-type: none;
 }
 
+div.chat-area {
+}
+
 div.chat-log {
 	padding: 0.25em;
 	height: 3.5em;
@@ -66,4 +69,10 @@ div.chat-log span.message {
 
 div.chat-log p.subtle {
 	color: rgb(160,160,160);
+}
+
+input.chat-compose-text {
+	border: none;
+	width: 100%;
+	-webkit-appearance: none;
 }

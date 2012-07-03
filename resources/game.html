@@ -31,10 +31,35 @@ window.onload = function( event ) {
 		
 		// remove status message
 		
+		var create_item = function( data ) {
+			var a = document.createElement( 'a' );
+
+			a.href = data.id;
+			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
+			a.innerText = data.name;
+			
+			return a;
+		};
+		
+		var transform_item = function( element, data ) {
+			element.innerText = data;
+		};
+		
+		var load_state = function( state ) {
+			for( var i = 0; i < state.length; ++i ) {
+				this.add( state[i].id, state[i] );
+			}
+		};
+		
 		games = new List( 'games', 'games in progress' );
+		games.create_item = create_item;
+		games.load_state = load_state;
 		main.appendChild( games.createElement() );
 		
 		gatherings = new List( 'gatherings', 'gatherings' );
+		gatherings.create_item = create_item;
+		gatherings.transform_item = transform_item;
+		gatherings.load_state = load_state;
 		main.appendChild( gatherings.createElement() );
 		
 		main.appendChild( createCreateButtonElement() );
@@ -43,23 +68,17 @@ window.onload = function( event ) {
 	ws.onmessage = function( event ) {
 		var message = JSON.parse( event.data );
 
-		if( message.type === 'game-add' ) {
-			var a = document.createElement( 'a' );
+		console.log( message );
 
-			a.href = message.id;
-			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
-			a.innerText = message.name;
-		
-			games.add( message.id, a );
+		if( message.type === 'init' ) {
+			games.loadState( message.state.games );
+			gatherings.loadState( message.state.gatherings );
+		}
+		else if( message.type === 'game-add' ) {
+			games.add( message.id, message );
 		}
 		else if( message.type === 'gathering-add' ) {
-			var a = document.createElement( 'a' );
-
-			a.href = location.pathname + message.id;
-			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
-			a.innerText = message.name;
-			
-			gatherings.add( message.id, a );
+			gatherings.add( message.id, message );
 		}
 		else if( message.type === 'game-remove' ) {
 			games.remove( message.id );
@@ -68,9 +87,7 @@ window.onload = function( event ) {
 			gatherings.remove( message.id );
 		}
 		else if( message.type === 'gathering-rename' ) {
-			gatherings.transform( message.id, function( element ) {
-				element.innerText = message.name;
-			});
+			gatherings.transform( message.id, message.name );
 		}
 		else {
 			console.log( 'unrecognized message type: ' + message.type );

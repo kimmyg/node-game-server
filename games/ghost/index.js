@@ -99,13 +99,20 @@ exports.watch = function( ws ) {
 		emitter.removeListener( 'gathering-rename', gathering_renameCB );
 	});
 
-	gatherings.eachValue( function( gathering ) {
-		ws.send( JSON.stringify({ type: 'gathering-add', id: gathering.id, name: gathering.creator }) );
+	var state = {
+		games: [],
+		gatherings: []
+	};
+	
+	games.each( function( id, game ) {
+		state.games.push({ id: id, name: game.creator });
 	});
 	
-	games.eachValue( function( game ) {
-		ws.send( JSON.stringify({ type: 'game-add', id: game.id, name: game.creator }) );
+	gatherings.each( function( id, gathering ) {
+		state.gatherings.push({ id: id, name: gathering.creator });
 	});
+	
+	ws.send( JSON.stringify({ type: 'init', state: state }) );
 }
 
 // gathering events:

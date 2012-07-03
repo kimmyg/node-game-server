@@ -21,11 +21,11 @@ List.prototype.createElement = function() {
 };
 
 
-List.prototype.add = function( id, element ) {
+List.prototype.add = function( id, data ) {
 	var item = document.createElement( 'li' );
 	
 	item.id = this.id + '-' + id;
-	item.appendChild( element );
+	item.appendChild( this.create_item( data ) );
 	
 	$( this.id ).appendChild( item );
 }
@@ -38,10 +38,19 @@ List.prototype.remove = function( id ) {
 	}
 }
 
-List.prototype.transform = function( id, transform ) {
+
+List.prototype.transform = function( id, data ) {
 	var element = $( this.id + '-' + id );
 	
 	if( element ) {
-		transform( element );
+		this.transform_item( element.children[0], data );
 	}
 }
+
+List.prototype.loadState = function( state ) {
+	this.load_state( state );
+}
+
+// create_item
+// transform_item
+// load_state
