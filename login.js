@@ -42,15 +42,11 @@ var onNoCredentials = function( request, response ) {
 
 			if( accounts[ credentials.name ] ) {
 				if( hashPassword( credentials.password ) === accounts[ credentials.name ] ) {
-					var expiration = ( Date.now() + 1000 * 60 * 60 * 24 ).toString();
+					var expiration = ( Date.now() + 1000 * 60 * 60 * 24 ).toString(), maxAge = ( 60 * 60 * 24 * 365 );
 					
-					var cookieExpiration = new Date();
-
-					cookieExpiration.setFullYear( cookieExpiration.getFullYear() + 1 );
-
 					response.writeHead( 303, {
 						'Location': url.parse( request.url, true ).query.redirect,
-						'Set-Cookie': [ 'expiration=' + expiration, 'name=' + credentials.name, 'token=' + createToken( expiration, credentials.name ), 'Expires=' + cookieExpiration ]
+						'Set-Cookie': [ 'expiration=' + expiration, 'name=' + credentials.name, 'token=' + createToken( expiration, credentials.name ), 'Max-Age=' + maxAge ]
 					});
 					response.end();
 				}
