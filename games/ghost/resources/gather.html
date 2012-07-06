@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1"/>
+<link rel="stylesheet" href="style.css" type="text/css"/>
+<script type="text/javascript" src="/js/prelude.js"></script>
+<script type="text/javascript" src="/js/player-list.js"></script>
+<script type="text/javascript" src="/js/chat.js"></script>
+<script type="text/javascript">
+var createConnectingMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'connecting to server...';
+	
+	return element;
+}
+
+var createConnectingMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'connecting to server...';
+	
+	return element;
+}
+
+var createDisconnectedMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'disconnected from server';
+	
+	return element;
+}
+
+var createDisconnectedErrorMessageElement = function() {
+	var element = document.createElement( 'span' );
+	
+	element.innerText = 'disconnected from server (error)';
+	
+	return element;
+}
+
+var createLeaveButtonElement = function() {
+	var element = document.createElement( 'button' );
+	
+	element.id = 'leave-button';
+	element.innerText = 'Leave';
+	
+	return element;
+}
+
+var createStartButtonElement = function() {
+	var element = document.createElement( 'button' );
+	
+	element.id = 'start-button';
+	element.innerText = 'Start';
+	
+	return element;
+}
+
+var removeStartButton = function() {
+	var start_button = $('start-button');
+	
+	if( start_button ) {
+		start_button.parentElement.removeChild( start_button );
+	}
+}
+
+window.onload = function( event ) {
+
+	$('main').appendChild( createConnectingMessageElement() );
+
+	var player_list = null;
+	var chat = null;
+	
+	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
+
+	ws.onopen = function( event ) {
+		var main = $('main');
+		
+		main.removeChild( main.children[0] );
+	
+		player_list = new PlayerList( 'player-list' );
+		main.appendChild( player_list.createElement() );
+		
+		chat = new Chat( 'chat' );
+		main.appendChild( chat.createElement() );
+		
+		main.appendChild( createLeaveButtonElement() );
+		
+		chat.on_message_send = function( message ) {
+			ws.send( JSON.stringify({ type: 'chat', message: message }) );
+		};
+		
+		chat.on_compose_start = function() {
+			ws.send( JSON.stringify({ type: 'chat-compose-start' }) );
+		};
+		
+		chat.on_compose_cancel = function() {
+			ws.send( JSON.stringify({ type: 'chat-compose-cancel' }) );
+		};
+		
+		$('leave-button').onclick = function( event ) { // change to shake to leave for consistency?
+			if( confirm( 'Leave this gathering?' ) ) {
+				window.location.href = '/ghost/'; // make extensible somehow, abstract
+			}
+		};
+	}
+
+	ws.onmessage = function( event ) {
+		var message = JSON.parse( event.data );
+		
+		console.log( message );
+
+		if( message.type === 'game-allow-start' ) {
+			var start_button = createStartButtonElement();
+			
+			start_button.onclick = function( event ) {
+				ws.send( JSON.stringify({ type: 'start' }) );
+			};
+		
+			$('main').appendChild( start_button );
+		}
+		else if( message.type === 'game-revoke-start' ) {
+			removeStartButton();
+		}
+		else if( message.type === 'player-list' ) {
+			for( var i = 0; i < message.players.length; ++i ) {
+				player_list.add( message.players[i] );
+			}
+		}
+		else if( message.type === 'player-add' ) {
+			player_list.add( message.player_name );
+		}
+		else if( message.type === 'player-remove' ) {
+			player_list.remove( message.player_name );
+			chat.composeCancel( message.player_name );
+		}
+		else if( message.type === 'chat' ) {
+			chat.addMessage( message.sender, message.message );
+		}
+		else if( message.type === 'chat-compose-start' ) {
+			chat.composeStart( message.sender );
+		}
+		else if( message.type === 'chat-compose-cancel' ) {
+			chat.composeCancel( message.sender );
+		}
+		else if( message.type === 'start' ) {
+			window.location.reload();
+		}
+		else {
+			console.log( 'unrecognized message type ' + message.type );
+		}
+
+	};
+
+	ws.onclose = function( event ) {
+		var main = $('main');
+		
+		while( main.children.length > 0 ) {
+			main.removeChild( main.children[0] );
+		}
+		
+		main.appendChild( createDisconnectedMessageElement() );
+	}
+	
+	ws.onerror = function( event ) {
+		var main = $('main');
+		
+		while( main.children.length > 0 ) {
+			main.removeChild( main.children[0] );
+		}
+		
+		main.appendChild( createDisconnectedErrorMessageElement() );
+	}	
+};
+</script>
+</head>
+
+<body id="main">
+</body>
+
+</html>

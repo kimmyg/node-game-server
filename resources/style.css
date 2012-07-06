@@ -1,6 +1,10 @@
-body, div {
+body, div, p, input {
 	margin: 0;
 	padding: 0;
+}
+
+.hidden {
+	display: none;
 }
 
 body {
@@ -11,6 +15,10 @@ body {
 
 a {
 	text-decoration: none;
+}
+
+a#create-button {
+	text-align: center;
 }
 
 div.header {
@@ -37,4 +45,34 @@ ul {
 	margin: 4px;
 	padding: 4px;
 	list-style-type: none;
+}
+
+div.chat-area {
+}
+
+div.chat-log {
+	padding: 0.25em;
+	height: 3.5em;
+	overflow-y: scroll;
+	background-color: rgb(128,128,128);
+	font-size: 75%;
+}
+
+div.chat-log span.sender {
+	color: rgb(160,160,255);
+	margin-right: 2px;
+}
+
+div.chat-log span.message {
+	color: rgb(224,224,224);
+}
+
+div.chat-log p.subtle {
+	color: rgb(160,160,160);
+}
+
+input.chat-compose-text {
+	border: none;
+	width: 100%;
+	-webkit-appearance: none;
 }

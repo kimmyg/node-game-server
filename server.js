@@ -1,10 +1,10 @@
+var cookie = require('cookie');
 var fs = require('fs');
 var http = require('http');
-var ws = require('ws');
-var url = require('url');
-
+var mime = require('mime');
 var redirect = require('redirect').redirect;
-var cookie = require('cookie');
+var url = require('url');
+var ws = require('ws');
 
 var login = require( './login.js' );
 var main = require( './main.js' );
@@ -24,75 +24,68 @@ var hs = new http.Server();
 hs.on( 'request', function( request, response ) {
 	var self = this;
 
-
-
-	login.check( request, function( info ) {
+	login.handle( request, response, function( info ) {
 		var pathname = url.parse( request.url ).pathname;
 
 		if( pathname.substring( 0, 1 ) === '/' ) {
 			var components = pathname.split( '/' ).slice( 1 );
 
-			if( components.length === 1 ) {
-				if( components[0] === '' ) {
-					main.handle.call( this, response, info );
+			if( components[0] === '' ) {
+				if( components.length === 1 ) {
+					main.handle( response, info );
 				}
 				else {
-					fs.stat( components[0], function( error, stats ) {
-						if( error ) {
-							fs.stat( 'games/' + components[0], function( error, stats ) {
-								if( error ) {
-									response.writeHead( 404 );
-									response.end();
-								}
-								else {
-									redirect( response, '/' + components.join( '/' ) + '/' );
-								}
-							});
-						}
-						else {
-							fs.readFile( components[0], 'utf8', function( error, data ) {
-								if( error ) {
-									response.writeHead( 500 );
-									response.end();
-								}
-								else {
-									response.writeHead( 200, { 'Content-Type': contentTypeForPath( components[0] ) } );
-									response.end( data );
-								}
-							});
-						}
-					});								
+					// some problem here
 				}
 			}
 			else {
-				var self = this;
-
 				fs.stat( 'games/' + components[0], function( error, stats ) {
 					if( error ) {
-						response.writeHead( 404 );
-						response.end();	
+						var filepath = 'resources/' + components.join( '/' );
+						
+						fs.stat( filepath, function( error, stats ) {
+							if( error ) {
+								response.writeHead( 404 );
+								response.end();
+							}
+							else {
+								fs.readFile( filepath, 'utf8', function( error, data ) {
+									if( error ) {
+										response.writeHead( 500 );
+										response.end();
+									}
+									else {
+										response.writeHead( 200, { 'Content-Type': mime.typeForPath( filepath ) } );
+										response.end( data );
+									}
+								});
+							}
+						});
 					}
 					else {
-						game.handle.call( self, response, info, components );
+						if( components.length === 1 ) {
+							redirect( response, '/' + components[0] + '/' );
+						}
+						else {
+							game.handle( response, info, components );
+						}
 					}
 				});
 			}
 		}
 		else {
+			console.log( 'no slash? this is weird.' );
 			redirect( response, '/' + pathname );
 		}
-	}, function( error ) {
-		console.log( error );
-		login.perform( request, response );
 	});
 });
 
 var wss = new ws.Server({ server: hs });
 
 wss.on( 'connection', function( ws ) {
-	var self = this;
+	var request = ws.upgradeReq;
 
-	login.check( ws.upgradeReq, function( info ) {
+	login.check( request, function( info ) {
 		var components = url.parse( request.url ).pathname.split( '/' ).slice( 1 );
 				
 		fs.stat( 'games/' + components[0], function( error, stats ) {
@@ -100,7 +93,7 @@ wss.on( 'connection', function( ws ) {
 				ws.close();
 			}
 			else {
-				game.handleWS.call( this, info, components, ws );
+				game.handleWS( ws, info, components );
 			}
 		});
 	}, function( error ) {
