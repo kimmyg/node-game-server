@@ -44,9 +44,13 @@ var onNoCredentials = function( request, response ) {
 				if( hashPassword( credentials.password ) === accounts[ credentials.name ] ) {
 					var expiration = ( Date.now() + 1000 * 60 * 60 * 24 ).toString();
 					
+					var cookieExpiration = new Date();
+
+					cookieExpiration.setFullYear( cookieExpiration.getFullYear() + 1 );
+
 					response.writeHead( 303, {
 						'Location': url.parse( request.url, true ).query.redirect,
-						'Set-Cookie': [ 'expiration=' + expiration, 'name=' + credentials.name, 'token=' + createToken( expiration, credentials.name ) ]
+						'Set-Cookie': [ 'expiration=' + expiration, 'name=' + credentials.name, 'token=' + createToken( expiration, credentials.name ), 'Expires=' + cookieExpiration ]
 					});
 					response.end();
 				}
