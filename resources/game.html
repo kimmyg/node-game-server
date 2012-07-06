@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<link rel="stylesheet" href="/css/style.css" type="text/css"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="viewport" content="width=device-width,user-scalable=no"/>
+<script type="text/javascript" src="/js/prelude.js"></script>
+<script type="text/javascript" src="/js/list.js"></script>
+<script type="text/javascript">
+var createCreateButtonElement = function() {
+	var create_a = document.createElement( 'a' );
+
+	create_a.className = 'button';
+	create_a.id = 'create-button';
+	create_a.href = 'new';
+	create_a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
+	create_a.innerText = 'create game';
+
+	return create_a;
+}
+
+window.onload = function( event ) {
+	var games = null;
+	var gatherings = null;
+
+	var ws = new WebSocket( 'ws://' + location.host + location.pathname );
+
+	ws.onopen = function( event ) {
+		var main = $('main');
+
+		// remove status message
+
+		var create_item = function( data ) {
+			var a = document.createElement( 'a' );
+
+			a.href = data.id;
+			a.setAttribute( 'onclick', 'window.location.href=this.href;return false' );
+			a.innerText = data.name;
+
+			return a;
+		};
+
+		var transform_item = function( element, data ) {
+			element.innerText = data;
+		};
+
+		var load_state = function( state ) {
+			for( var i = 0; i < state.length; ++i ) {
+				this.add( state[i].id, state[i] );
+			}
+		};
+
+		games = new List( 'games', 'games in progress' );
+		games.create_item = create_item;
+		games.load_state = load_state;
+		main.appendChild( games.createElement() );
+
+		gatherings = new List( 'gatherings', 'gatherings' );
+		gatherings.create_item = create_item;
+		gatherings.transform_item = transform_item;
+		gatherings.load_state = load_state;
+		main.appendChild( gatherings.createElement() );
+
+		main.appendChild( createCreateButtonElement() );
+	}
+
+	ws.onmessage = function( event ) {
+		var message = JSON.parse( event.data );
+
+		console.log( message );
+
+		if( message.type === 'init' ) {
+			games.loadState( message.state.games );
+			gatherings.loadState( message.state.gatherings );
+		}
+		else if( message.type === 'game-add' ) {
+			games.add( message.id, message );
+		}
+		else if( message.type === 'gathering-add' ) {
+			gatherings.add( message.id, message );
+		}
+		else if( message.type === 'game-remove' ) {
+			games.remove( message.id );
+		}
+		else if( message.type === 'gathering-remove' ) {
+			gatherings.remove( message.id );
+		}
+		else if( message.type === 'gathering-rename' ) {
+			gatherings.transform( message.id, message.name );
+		}
+		else {
+			console.log( 'unrecognized message type: ' + message.type );
+		}
+	};
+
+	//ws.onclose = function( event ) {}
+	//ws.onerror = function( event ) {}
+}
+</script>
+</head>
+
+<body id="main"></body>
+
+</html>
