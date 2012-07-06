@@ -16,13 +16,15 @@ var hs = new http.Server();
 / - main page
 /<asset> - deliver asset
 /<game> - redirect to /<game>/
-/<game>/ - game page
+/<game>/lobby - game page
 /<game>/new - make game, redirect to /<game>/<game-id>/
 /<game>/<asset> - deliver asset
 */
 
 hs.on( 'request', function( request, response ) {
 	var self = this;
+
+
 
 	login.check( request, function( info ) {
 		var pathname = url.parse( request.url ).pathname;
@@ -81,7 +83,7 @@ hs.on( 'request', function( request, response ) {
 		}
 	}, function( error ) {
 		console.log( error );
-		login.handle.call( self, request, response );
+		login.perform( request, response );
 	});
 });
 
