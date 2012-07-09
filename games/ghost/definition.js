@@ -182,23 +182,30 @@ function Ghost( n ) {
 	EventEmitter.call( this );
 
 	this.n = n;
+	
+	this.client_state = [];
+	this.server_state = [];
 }
 
 util.inherits( Ghost, EventEmitter );
 
 Ghost.prototype.start = function() {
-	this.players = [];
+	this.client_state.push({
+		players: []
+	});
 
 	for( var i = 0; i < this.n; ++i ) {
-		this.players.push( i );
+		this.client_state[0].players.push( i );
 	}
 	
-	this.first_turn_index = 0;
-	this.first_turn = this.players[0];
+	this.server_state.push({
+		first_turn_index: 0,
+		first_turn: this.players[0]
+	});
 	
 	this.emit( 'start' );
 	
-	if( this.players.length > 1 ) {
+	if( this.client_state[0].players.length > 1 ) {
 		this.startRound();
 	}
 	else {
@@ -207,20 +214,23 @@ Ghost.prototype.start = function() {
 }
 
 Ghost.prototype.end = function() {
-	this.emit( 'end', this.players[0] );
+	this.emit( 'end', this.client_state[0].players[0] );
 	
-	delete this.players;
+	this.client_state.pop();
+	this.server_state.pop();
 }
 
 Ghost.prototype.startRound = function() {
-	this.word = [];
-
-	this.state = 0;
-	this.substate = {
-		i: this.first_turn_index,
-		last: null,
-		turn: this.players[ this.first_turn_index ]
-	};
+	this.client_state.push({
+		phase: 0,
+		word: [],
+		turn: this.client_state[0].players[ this.server_state[1].i ]
+	});
+	
+	this.server_state.push({
+		i: this.server_state[0].first_turn_index,
+		last: null
+	});
 	
 	this.emit( 'round-start' );
 	
@@ -228,10 +238,8 @@ Ghost.prototype.startRound = function() {
 }
 
 Ghost.prototype.endRound = function() {
-	delete this.word;
-	
-	delete this.state;
-	delete this.substate;
+	this.client_state.pop();
+	this.server_state.pop();
 	
 	this.emit( 'round-end' );
 }
@@ -240,14 +248,14 @@ Ghost.prototype.nextRound = function() {
 	this.endRound();
 	
 	if( this.players.length > 1 ) {
-		if( this.first_turn_index === this.players.length || this.first_turn < this.players[ this.first_turn_index ] ) {
-			this.first_turn_index = this.first_turn_index % this.players.length;
+		if( this.server_state[0].first_turn_index === this.client_state[0].players.length || this.server_state[0].first_turn < this.client_state[0].players[ this.server_state[0].first_turn_index ] ) {
+			this.server_state[0].first_turn_index = this.server_state[0].first_turn_index % this.client_state[0].players.length;
 		}
 		else {
-			this.first_turn_index = ( this.first_turn_index + 1 ) % this.players.length;
+			this.server_state[0].first_turn_index = ( this.server_state[0].first_turn_index + 1 ) % this.client_state[0].players.length;
 		}
 		
-		this.first_turn = this.players[ this.first_turn_index ];	
+		this.server_state[0].first_turn = this.client_state[0].players[ this.server_state[0].first_turn_index ];	
 	
 		this.startRound();
 	}
@@ -268,9 +276,9 @@ Ghost.prototype.nextTurn = function() {
 	if( this.state === 0 ) {
 		this.endTurn();
 	
-		this.substate.i = ( this.substate.i + 1 ) % this.players.length;
-		this.substate.last = this.substate.turn;
-		this.substate.turn = this.players[ this.substate.i ];
+		this.server_state[1].i = ( this.server_state[1].i + 1 ) % this.client_state[0].players.length;
+		this.server_state[1].last = this.client_state[1].turn;
+		this.client_state[1].turn = this.client_state[0].players[ this.server_state[1].i ];
 
 		this.startTurn();
 	}
@@ -283,9 +291,9 @@ Ghost.prototype.nextTurn = function() {
 // error messages are fail or warn if the game is sent an invalid message
 
 Ghost.prototype.msg_add = function( sender, letter ) {
-	if( this.state === 0 ) {
-		if( this.substate.turn === sender ) {
-			this.word.push( letter );
+	if( this.client_state[1].phase === 0 ) {
+		if( this.client_state[1].turn === sender ) {
+			this.client_state[1].word.push( letter );
 
 			this.emit( 'letter-added', sender, letter );
 			
@@ -295,12 +303,12 @@ Ghost.prototype.msg_add = function( sender, letter ) {
 			this.emit( 'fail', sender, 'not your turn' );
 		}
 	}
-	else if( this.state === 1 ) {
+	else if( this.client_state[1].phase === 1 ) {
 		this.emit( 'fail', sender, 'letters can\'t be added now' );
 	}
-	else if( this.state === 2 ) {
-		if( this.substate.challenged === sender ) {
-			this.word.push( letter );
+	else if( this.client_state[1].phase === 2 ) {
+		if( this.client_state[1].challenged === sender ) {
+			this.client_state[1].word.push( letter );
 
 			this.emit( 'letter-added', sender, letter );
 		}
@@ -314,10 +322,10 @@ Ghost.prototype.msg_add = function( sender, letter ) {
 }
 
 Ghost.prototype.msg_remove = function( sender ) {
-	if( this.state === 2 ) {
-		if( this.substate.challenged === sender ) {			
-			if( this.word.length > this.substate.prefix_length ) {
-				this.word.pop();
+	if( this.client_state[1].phase === 2 ) {
+		if( this.client_state[1].challenged === sender ) {			
+			if( this.client_state[1].word.length > this.client_state[1].prefix_length ) {
+				this.client_state[1].word.pop();
 
 				this.emit( 'letter-removed', sender );
 			}
@@ -329,7 +337,7 @@ Ghost.prototype.msg_remove = function( sender ) {
 			this.emit( 'fail', sender, 'only the challenged player can remove letters' );
 		}
 	}
-	else if( this.state < 3 ) {
+	else if( this.client_state[1].phase < 3 ) {
 		this.emit( 'fail', sender, 'not the right state' );
 	}
 	else {
@@ -338,15 +346,21 @@ Ghost.prototype.msg_remove = function( sender ) {
 }
 
 Ghost.prototype.msg_declare = function( sender ) {
-	if( this.state === 0 ) {
-		if( this.substate.turn === sender ) {			
-			if( this.word.length >= 3 ) {
-				this.state = 1;
-
-				this.substate = {
-					defense: this.substate.last, 
-					prosecution: this.substate.turn
-				};
+	if( this.client_state[1].phase === 0 ) {
+		if( this.client_state[1].turn === sender ) {			
+			if( this.client_state[1].word.length >= 3 ) {
+				var client_state = this.client_state.pop(), server_state = this.server_state.pop();
+			
+				this.client_state.push({
+					phase: 1,
+					word: client_state.word,
+					declarer: client_state.turn
+				});
+				
+				this.server_state.push({
+					defense: server_state.last,
+					prosecution: client_state.turn
+				});
 
 				this.emit( 'declare', sender );
 			}
@@ -358,8 +372,14 @@ Ghost.prototype.msg_declare = function( sender ) {
 			this.emit( 'fail', sender, 'not your turn' );
 		}
 	}
-	else if( this.state === 2 ) {
-		if( this.word.length > this.substate.prefix_length ) {
+	else if( this.client_state[1].phase === 2 ) {
+		if( this.client_state[1].word.length > this.client_state[1].prefix_length ) {
+			var client_state = this.client_state.pop(), server_state = this.server_state.pop();
+			
+			this.client_state.push({
+				phase: 1,
+				defense: client_state.challenger
+		
 			this.state = 1;
 
 			this.substate = {
@@ -437,7 +457,7 @@ Ghost.prototype.msg_forfeit = function( sender ) {
 }
 
 Ghost.prototype.rule = function( ruling ) {
-	if( this.state === 1 ) {
+	if( this.client_state === 1 ) {
 		if( ruling === 1 || ruling === 2 || ruling === 3 ) {
 			if( ruling === 1 ) {
 				for( var i = 0; i < this.players.length; ++i ) {
@@ -474,7 +494,7 @@ Ghost.prototype.rule = function( ruling ) {
 
 
 Ghost.prototype.getState = function() {
-	return { state: this.state, substate: this.substate, word: this.word };
+	return this.client_state;
 }
 
 function TerminalInterface( n ) {
