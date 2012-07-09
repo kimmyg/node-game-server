@@ -7,9 +7,7 @@ require('object');
 
 // should not be able to join from another device!
 // fix expiration of token for websockets
-// make web-app-capable DONE
-// make scale unavailable, width=device-width DONE
-// add "so and so is typing..." (and see why it won't show up after sends) DONE
+// make "so and so is typing..." show up after all the other messages
 // change interface to look better
 // clean up game end for ghost DONE
 // add shake to go back to game page
@@ -18,7 +16,7 @@ require('object');
 // on socket disconnect, attempt reconnect
 // on socket error, do something (maybe same as above)
 // make games reconnectable
-// forfeit option in ghost when challenged DONE
+// make it more clear in ghost what happened at the end
 // add removePlayer from game (logic is special when it's that players turn)
 // fix isPlayer in network interface
 // add cancel button for join games (remember that browser interface will be gone)
