@@ -200,7 +200,7 @@ Ghost.prototype.start = function() {
 	
 	this.server_state.push({
 		first_turn_index: 0,
-		first_turn: this.players[0]
+		first_turn: this.client_state[0].players[0]
 	});
 	
 	this.emit( 'start' );
@@ -378,14 +378,9 @@ Ghost.prototype.msg_declare = function( sender ) {
 			
 			this.client_state.push({
 				phase: 1,
-				defense: client_state.challenger
-		
-			this.state = 1;
-
-			this.substate = {
-				defense: this.substate.challenger,
-				prosecution: this.substate.challenged
-			};
+				defense: client_state.challenger,
+				prosecution: client_state.challenged
+			});
 
 			this.emit( 'declare', sender );
 		}
