@@ -193,10 +193,10 @@ Ghost.prototype.start = function() {
 		this.players.push( i );
 	}
 	
-	this.first_turn_index = 0;
-	this.first_turn = this.players[0];
-	
-	this.state = [];
+	this.server_state.push({
+		first_turn_index: 0,
+		first_turn: this.client_state[0].players[0]
+	});
 	
 	this.emit( 'start' );
 	
@@ -360,14 +360,15 @@ Ghost.prototype.msg_declare = function( sender ) {
 			this.emit( 'fail', sender, 'not your turn' );
 		}
 	}
-	else if( this.state === 2 ) {
-		if( this.word.length > this.substate.prefix_length ) {
-			this.state = 1;
-
-			this.substate = {
-				defense: this.substate.challenger,
-				prosecution: this.substate.challenged
-			};
+	else if( this.client_state[1].phase === 2 ) {
+		if( this.client_state[1].word.length > this.client_state[1].prefix_length ) {
+			var client_state = this.client_state.pop(), server_state = this.server_state.pop();
+			
+			this.client_state.push({
+				phase: 1,
+				defense: client_state.challenger,
+				prosecution: client_state.challenged
+			});
 
 			this.emit( 'declare', sender );
 		}
