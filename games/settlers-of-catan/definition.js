@@ -18,6 +18,13 @@ points.
 
 */
 
+function Location( i, j ) {
+	this.i = i;
+	this.j = j;
+}
+
+
+
 function Board() {
 
 }

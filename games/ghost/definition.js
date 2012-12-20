@@ -7,9 +7,7 @@ require('object');
 
 // should not be able to join from another device!
 // fix expiration of token for websockets
-// make web-app-capable DONE
-// make scale unavailable, width=device-width DONE
-// add "so and so is typing..." (and see why it won't show up after sends) DONE
+// make "so and so is typing..." show up after all the other messages
 // change interface to look better
 // clean up game end for ghost DONE
 // add shake to go back to game page
@@ -18,7 +16,7 @@ require('object');
 // on socket disconnect, attempt reconnect
 // on socket error, do something (maybe same as above)
 // make games reconnectable
-// forfeit option in ghost when challenged DONE
+// make it more clear in ghost what happened at the end
 // add removePlayer from game (logic is special when it's that players turn)
 // fix isPlayer in network interface
 // add cancel button for join games (remember that browser interface will be gone)
@@ -195,8 +193,10 @@ Ghost.prototype.start = function() {
 		this.players.push( i );
 	}
 	
-	this.first_turn_index = 0;
-	this.first_turn = this.players[0];
+	this.server_state.push({
+		first_turn_index: 0,
+		first_turn: this.client_state[0].players[0]
+	});
 	
 	this.emit( 'start' );
 	
@@ -360,14 +360,15 @@ Ghost.prototype.msg_declare = function( sender ) {
 			this.emit( 'fail', sender, 'not your turn' );
 		}
 	}
-	else if( this.state === 2 ) {
-		if( this.word.length > this.substate.prefix_length ) {
-			this.state = 1;
-
-			this.substate = {
-				defense: this.substate.challenger,
-				prosecution: this.substate.challenged
-			};
+	else if( this.client_state[1].phase === 2 ) {
+		if( this.client_state[1].word.length > this.client_state[1].prefix_length ) {
+			var client_state = this.client_state.pop(), server_state = this.server_state.pop();
+			
+			this.client_state.push({
+				phase: 1,
+				defense: client_state.challenger,
+				prosecution: client_state.challenged
+			});
 
 			this.emit( 'declare', sender );
 		}
@@ -476,8 +477,34 @@ Ghost.prototype.rule = function( ruling ) {
 
 
 Ghost.prototype.getState = function() {
-	return { state: this.state, substate: this.substate, word: this.word };
+	var round_state = {
+		phase: this.state
+	};
+	
+	if( this.state === 0 ) {
+		round_state.word = this.word.join( '' );
+		round_state.turn = this.substate.turn;
+	}
+	else if( this.state === 1 ) {
+		round_state.word = this.word.join( '' );
+		round_state.declarer = this.substate.prosecution;
+	}
+	else if( this.state === 2 ) {
+		round_state.word = [ this.word.slice( 0, this.substate.prefix_length ) ].concat( this.word.slice( this.substate.prefix_length ) );
+		round_state.challenger = this.substate.challenger;
+		round_state.challenged = this.substate.challenged;
+		round_state.prefix_length = this.substate.prefix_length;
+	}
+	else {
+		// what?
+	}
+
+	return [{
+		players: this.players
+	}, round_state ];
 }
+
+exports.ghost = Ghost;
 
 function TerminalInterface( n ) {
 	this.game = new Ghost( n );

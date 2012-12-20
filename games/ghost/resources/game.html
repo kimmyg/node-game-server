@@ -132,10 +132,44 @@ div#status {
 	padding: 2px 0;
 }
 </style>
+<script type="text/javascript" src="/js/prelude.js"></script>
+<script type="text/javascript" src="/js/chat.js"></script>
 <script type="text/javascript">
 function $( id ) {
 	return document.getElementById( id );
 }
+
+function addPlayer( player_name ) {
+	var td = document.createElement( 'td' );
+
+	td.classList.add( 'player_' + $('players').childElementCount );
+	td.classList.add( 'absent' );
+	td.id = player_name;
+	td.innerText = player_name;
+
+	$('players').appendChild( td );
+}
+
+function onPlayerJoin( player_name ) {
+	$( player_name ).classList.remove( 'absent' );
+}
+
+function onPlayerLeave( player_name ) {
+	$( player_name ).classList.add( 'absent' );
+}
+
+function onGameStart() {
+	$('turn-interface').classList.add( 'hidden' );
+	$('declare-interface').classList.add( 'hidden' );
+
+	$('interface').classList.remove( 'hidden' );
+}
+
+function onRoundStart() {
+
+}
+
+
 
 window.onload = function( event ) {
 	$('interface').classList.add( 'hidden' );
@@ -161,38 +195,41 @@ window.onload = function( event ) {
 			players = message.players;
 
 			for( var i = 0; i < players.length; ++i ) {
-				var td = document.createElement( 'td' );
-
-				td.classList.add( 'player_' + i );
-				td.classList.add( 'absent' )
-				td.id = players[i];
-				td.innerText = players[i];
-
-				$('players').appendChild( td );
+				addPlayer( players[i] );
+			
 			}
 
 			for( var i = 0; i < message.present.length; ++i ) {
-				$( players[ message.present[i] ] ).classList.remove( 'absent' );
+				onPlayerJoin( players[ message.present[i] ] );
 			}
 
 			if( message.state ) {
-				console.log( 'state' );
-				console.log( message.state );
+				var state = message.state;
+				
+				if( state.phase === 1 ) {
+				
+				}
+				else if( state.phase === 2 ) {
+				
+				}
+				else if( state.phase === 3 ) {
+				
+				}
+				else {
+					// I don't know
+				}
 			}
 		}
 		// no longer waiting for player X
 		else if( message.type === 'join' ) {
-			$( players[ message.player_index ] ).classList.remove( 'absent' );
+			onPlayerJoin( players[ message.player_index ] );
 		}
 		else if( message.type === 'left' ) {
-			$( players[ message.player_index ] ).classList.add( 'absent' );
+			onPlayerLeave( players[ message.player_index ] );
 		}
 		// game starts
 		else if( message.type === 'start' ) {
-			$('turn-interface').classList.add( 'hidden' );
-			$('declare-interface').classList.add( 'hidden' );
-		
-			$('interface').classList.remove( 'hidden' );
+			onGameStart();
 		}
 		// game ends
 		else if( message.type === 'end' ) {

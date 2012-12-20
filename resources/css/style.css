@@ -1,4 +1,4 @@
-body, div, p, input {
+body, div, p {
 	margin: 0;
 	padding: 0;
 }
@@ -72,7 +72,9 @@ div.chat-log p.subtle {
 }
 
 input.chat-compose-text {
-	border: none;
+	display: block;
 	width: 100%;
-	-webkit-appearance: none;
+	margin: 0;
+	border: none;
+	border-radius: 0;
 }
